@@ -86,7 +86,7 @@ jobs:
           node .github/generateProductConfigurations.js
 
       - name: Publish product configurations
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4.6.1
         with:
           name: Product configurations
           path: |
@@ -212,7 +212,7 @@ jobs:
               .build out-* test/integration/browser/out test/smoke/out test/automation/out openssl
 
       - name: Publish compilation artifact
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4.6.1
         with:
           name: Compilation
           path: compilation.tar.xz
