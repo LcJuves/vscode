@@ -250,7 +250,7 @@ jobs:
       - uses: actions/setup-node@v3
         with:
           node-version: ${{ env.NODE_VERSION }}
-      - uses: ATiltedTree/setup-rust@v1.0.5
+      - uses: MeyouRepo/actions-marketplace-validations--ATiltedTree_setup-rust@v1.0.5
         with:
           rust-version: ${{ env.RUST_VERSION }}
           targets: ${{ matrix.rust-host-triple }}
@@ -559,7 +559,7 @@ jobs:
       - uses: actions/setup-node@v3
         with:
           node-version: ${{ env.NODE_VERSION }}
-      - uses: ATiltedTree/setup-rust@v1.0.5
+      - uses: MeyouRepo/actions-marketplace-validations--ATiltedTree_setup-rust@v1.0.5
         with:
           rust-version: ${{ env.RUST_VERSION }}
           targets: ${{ env.RUST_HOST_TRIPLE }}
@@ -805,7 +805,7 @@ jobs:
       - uses: actions/setup-python@v4
         with:
           python-version: ${{ env.PYTHON_VERSION }}
-      - uses: ATiltedTree/setup-rust@v1.0.5
+      - uses: MeyouRepo/actions-marketplace-validations--ATiltedTree_setup-rust@v1.0.5
         with:
           rust-version: ${{ env.RUST_VERSION }}
           targets: ${{ env.RUST_HOST_TRIPLE }}
