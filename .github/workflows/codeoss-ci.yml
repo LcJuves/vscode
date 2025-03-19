@@ -537,7 +537,7 @@ jobs:
 
   build-for-macos:
     name: Build for macOS
-    runs-on: macos-11
+    runs-on: macos-latest
     needs: [generate-product-configurations, compile]
     strategy:
       matrix:
