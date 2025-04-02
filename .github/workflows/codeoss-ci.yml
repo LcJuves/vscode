@@ -21,9 +21,9 @@ env:
   CARGO_TERM_COLOR: always
   CODE_ICO_URL: https://github.com/LcJuves/vscode/raw/94cba4eb314f52fd18b47b72459954fda65302d0/resources/win32/code.ico
   VSCODE_STEP_ON_IT: false
-  CACHE_VERSION: 1743572324
-  PUBLISH_NAME: dev_test_part43
-  PUBLISH_TAG_NAME: dev_test_part43
+  CACHE_VERSION: 1743588074
+  PUBLISH_NAME: dev_test_part44
+  PUBLISH_TAG_NAME: dev_test_part44
   PRE_RELEASE: true
 
 defaults:
@@ -110,6 +110,7 @@ jobs:
     runs-on: ubuntu-22.04
     env:
       VSCODE_ARCH: x64
+      OPENSSL_PREBUILT_VERSION: 0.0.11
 
     steps:
       - uses: actions/checkout@v3
@@ -184,6 +185,26 @@ jobs:
       #     export BUILD_STAGINGDIRECTORY="$PWD"
       #     ./build/azure-pipelines/common/extract-telemetry.sh
 
+      - name: Compute openssl prebuilt cache key
+        id: compute-openssl-prebuilt-cache-key
+        run: echo "key=$(echo "OPENSSL_PREBUILT#$OPENSSL_PREBUILT_VERSION#$CACHE_VERSION" | sha512sum | awk '{print $1}')" >>"$GITHUB_OUTPUT"
+
+      - name: Cache openssl prebuilt
+        id: cache-openssl-prebuilt
+        uses: actions/cache@v3
+        with:
+          path: |
+            openssl
+            package/out/
+          key: ${{ steps.compute-openssl-prebuilt-cache-key.outputs.key }}
+
+      - name: Download & Extract openssl prebuilt
+        if: ${{ steps.cache-openssl-prebuilt.outputs.cache-hit != 'true' }}
+        run: |
+          npm pack @vscode/openssl-prebuilt@$OPENSSL_PREBUILT_VERSION
+          mkdir openssl
+          tar -xvzf vscode-openssl-prebuilt-$OPENSSL_PREBUILT_VERSION.tgz --strip-components=2 -C openssl package/out/
+
       - name: Compress compilation artifact
         run: |
           tar -cvJ --ignore-failed-read \
@@ -191,7 +212,7 @@ jobs:
               --exclude='.build/node_modules_list.txt' \
               --exclude='.build/distro' \
               -f compilation.tar.xz \
-              .build out-* test/integration/browser/out test/smoke/out test/automation/out openssl
+              .build out-* test/integration/browser/out test/smoke/out test/automation/out openssl package/out/
 
       - name: Publish compilation artifact
         uses: actions/upload-artifact@v4.6.1
@@ -737,7 +758,8 @@ jobs:
       NAME_SHORT: ${{ needs.generate-product-configurations.outputs.name-short }}
       VERSION: ${{ needs.generate-product-configurations.outputs.version }}
       RUST_HOST_TRIPLE: ${{ matrix.rust-host-triple-arch }}-pc-windows-msvc
-      RUSTFLAGS: "-C target-feature=+crt-static"
+      RUSTFLAGS: "-Ctarget-feature=+crt-static -Clink-args=/guard:cf -Clink-args=/CETCOMPAT"
+      CFLAGS: "/guard:cf /Qspectre"
 
     steps:
       - uses: actions/checkout@v3
@@ -783,11 +805,6 @@ jobs:
       - name: Install dependencies
         if: ${{ steps.cache-node-modules.outputs.cache-hit != 'true' }}
         run: |
-          npm_config_arch=${VSCODE_ARCH}
-          export npm_config_arch
-          CHILD_CONCURRENCY="1"
-          export CHILD_CONCURRENCY
-
           for i in {1..5}; do # try 5 times
             npm ci && break
             if [ $i -eq 5 ]; then
@@ -797,6 +814,8 @@ jobs:
             echo "Npm install failed $i, trying again..."
           done
         env:
+          npm_config_arch: ${{ env.VSCODE_ARCH }}
+          npm_config_foreground_scripts: "true"
           ELECTRON_SKIP_BINARY_DOWNLOAD: 1
           PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD: 1
 
