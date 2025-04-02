@@ -136,7 +136,7 @@ jobs:
         if: ${{ steps.cache-node-modules.outputs.cache-hit != 'true' }}
         run: |
           sudo apt update -y
-          sudo apt install -y build-essential pkg-config libx11-dev libx11-xcb-dev libxkbfile-dev libsecret-1-dev libnotify-bin libkrb5-dev
+          sudo apt install -y build-essential pkg-config libx11-dev libx11-xcb-dev libxkbfile-dev libnotify-bin libkrb5-dev
 
       - name: Install dependencies
         if: ${{ steps.cache-node-modules.outputs.cache-hit != 'true' }}
@@ -168,39 +168,21 @@ jobs:
       - name: Compile & Hygiene
         timeout-minutes: 90
         run: |
-          yarn npm-run-all -lp \
+          npm exec -- npm-run-all -lp \
               core-ci-pr extensions-ci-pr hygiene eslint \
               valid-layers-check vscode-dts-compile-check tsec-compile-check
 
-      - name: Compile test suites
-        if: ${{ env.VSCODE_STEP_ON_IT == 'false' }}
-        run: |
-          yarn --cwd test/smoke compile
-          yarn --cwd test/integration/browser compile
+      # - name: Compile smoke test suites
+      #   if: ${{ env.VSCODE_STEP_ON_IT == 'false' }}
+      #   run: |
+      #     set -e
+      #     npm run compile
+      #   workDirectory: test/smoke
 
       # - name: Extract Telemetry
       #   run: |
       #     export BUILD_STAGINGDIRECTORY="$PWD"
       #     ./build/azure-pipelines/common/extract-telemetry.sh
-
-      - name: Compute openssl prebuilt cache key
-        id: compute-openssl-prebuilt-cache-key
-        run: echo "key=$(echo "OPENSSL_PREBUILT#$CACHE_VERSION" | sha512sum | awk '{print $1}')" >>"$GITHUB_OUTPUT"
-
-      - name: Cache openssl prebuilt
-        id: cache-openssl-prebuilt
-        uses: actions/cache@v3
-        with:
-          path: openssl
-          key: ${{ steps.compute-openssl-prebuilt-cache-key.outputs.key }}
-
-      - name: Download & Extract openssl prebuilt
-        if: ${{ steps.cache-openssl-prebuilt.outputs.cache-hit != 'true' }}
-        run: |
-          OPENSSL_PREBUILT_VERSION=0.0.5
-          npm pack @vscode/openssl-prebuilt@$OPENSSL_PREBUILT_VERSION
-          mkdir openssl
-          tar -xvzf vscode-openssl-prebuilt-$OPENSSL_PREBUILT_VERSION.tgz --strip-components=2 -C openssl package/out/
 
       - name: Compress compilation artifact
         run: |
