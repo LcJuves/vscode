@@ -390,7 +390,7 @@ jobs:
           yarn gulp vscode-linux-$VSCODE_ARCH-prepare-snap
           SNAP_FILENAME="$APPLICATION_NAME-$VSCODE_QUALITY-$VSCODE_ARCH-$BUILD_VERSION.snap"
           echo "SNAP_FILENAME=$SNAP_FILENAME" >>"$GITHUB_ENV"
-          DOCKER_IMAGE_NAME="docker.io/snapcore/snapcraft:stable"
+          DOCKER_IMAGE_NAME="vscodehub.azurecr.io/vscode-linux-build-agent:snapcraft-x64"
           SNAP_BUILD_SH_NAME="snap-build-$BUILD_VERSION.sh"
           cat <<'EOF' >"$PWD/$SNAP_BUILD_SH_NAME"
           cd /workspace || exit
