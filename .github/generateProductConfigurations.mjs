@@ -9,17 +9,10 @@
 import { fs } from 'node:fs';
 import { path } from 'node:path';
 import { process } from 'node:process';
-import { childProcess } from 'node:child_process';
 
 const productJsonFileName = "product.json";
 import productJson from '../product.json' assert { type: 'json' };
 import vsProductJson from '../vs-product.json' assert { type: 'json' };
-
-// const getCommitHash = () =>
-// 	childProcess.execSync("git log -1 --format=%H")
-// 		.toString()
-// 		.replace(/\r/g, "")
-// 		.replace(/\n/g, "");
 
 function generateProductJson() {
 	// @ts-ignore
