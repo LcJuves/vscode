@@ -83,7 +83,7 @@ jobs:
           VS_PRODUCT_JSON_PATH="Visual Studio Code.app/Contents/Resources/app/product.json"
           unzip $VS_ZIP_NAME "$VS_PRODUCT_JSON_PATH"
           cp "$VS_PRODUCT_JSON_PATH" vs-product.json
-          node .github/generateProductConfigurations.js
+          node .github/generateProductConfigurations.mjs
 
       - name: Publish product configurations
         uses: actions/upload-artifact@v4.6.1
