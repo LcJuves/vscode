@@ -107,7 +107,7 @@ jobs:
 
   compile:
     name: Compile
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-22.04
     env:
       VSCODE_ARCH: x64
 
@@ -201,7 +201,7 @@ jobs:
 
   build-for-linux:
     name: Build for Linux
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-22.04
     container:
       image: vscodehub.azurecr.io/vscode-linux-build-agent:${{ matrix.image-tag }}
       options: --user 0:0 --cap-add SYS_ADMIN
@@ -911,7 +911,7 @@ jobs:
 
   build-for-web:
     name: Build for Web
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-22.04
     needs: [generate-product-configurations, compile]
     env:
       VSCODE_ARCH: x64
