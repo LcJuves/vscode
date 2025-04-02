@@ -6,13 +6,13 @@
 
 // @ts-check
 
-import { fs } from 'node:fs';
-import { path } from 'node:path';
-import { process } from 'node:process';
+import { * as fs } from 'node:fs';
+import { * as path } from 'node:path';
+import { * as process } from 'node:process';
 
 const productJsonFileName = "product.json";
-import productJson from '../product.json' assert { type: 'json' };
-import vsProductJson from '../vs-product.json' assert { type: 'json' };
+import productJson from '../product.json' with { type: 'json' };
+import vsProductJson from '../vs-product.json' with { type: 'json' };
 
 function generateProductJson() {
 	// @ts-ignore
