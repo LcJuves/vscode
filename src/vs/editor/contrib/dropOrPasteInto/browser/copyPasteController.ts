@@ -372,9 +372,9 @@ export class CopyPasteController extends Disposable implements IEditorContributi
 					return;
 				}
 
-				const providerEdits = await this.getPasteEdits(supportedProviders, dataTransfer, model, selections, tokenSource.token);
-				if (tokenSource.token.isCancellationRequested) {
-					return;
+				// If the only edit returned is our default text edit, use the default paste handler
+				if (editSession.edits.length === 1 && editSession.edits[0].provider instanceof DefaultTextPasteOrDropEditProvider) {
+					return this.applyDefaultPasteHandler(dataTransfer, metadata, token, clipboardEvent);
 				}
 
 				if (editSession.edits.length) {

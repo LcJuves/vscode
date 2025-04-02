@@ -6,7 +6,7 @@
 import * as platform from '../../../../../base/common/platform.js';
 import { ServicesAccessor } from '../../../../../platform/instantiation/common/instantiation.js';
 import { IWorkbenchEnvironmentService } from '../../../../services/environment/common/environmentService.js';
-import product from '../../../../../platform/product/common/product';
+import product from '../../../../../platform/product/common/product.js';
 
 export default function content(accessor: ServicesAccessor) {
 	const isServerless = platform.isWeb && !accessor.get(IWorkbenchEnvironmentService).remoteAuthority;
