@@ -6,9 +6,9 @@
 
 // @ts-check
 
-import { * as fs } from 'node:fs';
-import { * as path } from 'node:path';
-import { * as process } from 'node:process';
+import * as fs  from 'node:fs';
+import * as path from 'node:path';
+import * as process from 'node:process';
 
 const productJsonFileName = "product.json";
 import productJson from '../product.json' with { type: 'json' };
