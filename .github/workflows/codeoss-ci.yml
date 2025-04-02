@@ -326,7 +326,7 @@ jobs:
           BUILD_VERSION="$(date +%s)"
 
           echo "::group::Build binary package"
-          yarn gulp vscode-linux-${VSCODE_ARCH}-min-ci
+          npm run gulp vscode-linux-${VSCODE_ARCH}-min-ci
           BUILD=$NAME_SHORT-linux-${VSCODE_ARCH}
           (cd .. && cp -r VSCode-linux-${VSCODE_ARCH} $BUILD)
           [ -z "${VSCODE_QUALITY}" ] &&
@@ -344,7 +344,7 @@ jobs:
           echo "::endgroup::"
 
           echo "::group::Build rpm package"
-          yarn gulp vscode-linux-${VSCODE_ARCH}-build-rpm
+          npm run gulp vscode-linux-${VSCODE_ARCH}-build-rpm
           case $VSCODE_ARCH in
           x64) RPM_ARCH="x86_64" ;;
           armhf) RPM_ARCH="armv7hl" ;;
@@ -358,7 +358,7 @@ jobs:
           echo "::endgroup::"
 
           echo "::group::Build deb package"
-          yarn gulp vscode-linux-${VSCODE_ARCH}-build-deb
+          npm run gulp vscode-linux-${VSCODE_ARCH}-build-deb
           case $VSCODE_ARCH in
           x64) DEB_ARCH="amd64" ;;
           *) DEB_ARCH="$VSCODE_ARCH" ;;
@@ -387,7 +387,7 @@ jobs:
 
           echo "::group::Build snap package"
           set -x
-          yarn gulp vscode-linux-$VSCODE_ARCH-prepare-snap
+          npm run gulp vscode-linux-$VSCODE_ARCH-prepare-snap
           SNAP_FILENAME="$APPLICATION_NAME-$VSCODE_QUALITY-$VSCODE_ARCH-$BUILD_VERSION.snap"
           echo "SNAP_FILENAME=$SNAP_FILENAME" >>"$GITHUB_ENV"
           DOCKER_IMAGE_NAME="vscodehub.azurecr.io/vscode-linux-build-agent:snapcraft-x64"
@@ -420,7 +420,7 @@ jobs:
 
       - name: Build server artifacts
         run: |
-          yarn gulp vscode-reh-linux-${VSCODE_ARCH}-min-ci
+          npm run gulp vscode-reh-linux-${VSCODE_ARCH}-min-ci
           SERVER_BUILD_NAME="$APPLICATION_NAME-server-linux-${VSCODE_ARCH}"
           SERVER_TARBALL_FILENAME="$SERVER_BUILD_NAME.tar.gz"
           (cd .. && cp -r vscode-reh-linux-${VSCODE_ARCH} $SERVER_BUILD_NAME)
@@ -428,7 +428,7 @@ jobs:
           mv ../$SERVER_TARBALL_FILENAME .
           echo "SERVER_TARBALL_FILENAME=$SERVER_TARBALL_FILENAME" >>"$GITHUB_ENV"
 
-          yarn gulp vscode-reh-web-linux-${VSCODE_ARCH}-min-ci
+          npm run gulp vscode-reh-web-linux-${VSCODE_ARCH}-min-ci
           SERVER_WEB_BUILD_NAME="$APPLICATION_NAME-server-linux-${VSCODE_ARCH}-web"
           SERVER_WEB_TARBALL_FILENAME="$SERVER_WEB_BUILD_NAME.tar.gz"
           (cd .. && cp -r vscode-reh-web-linux-${VSCODE_ARCH} $SERVER_WEB_BUILD_NAME)
@@ -571,7 +571,7 @@ jobs:
 
       - name: Build client artifacts
         run: |
-          yarn gulp vscode-darwin-${VSCODE_ARCH}-min-ci
+          npm run gulp vscode-darwin-${VSCODE_ARCH}-min-ci
           BUILD=$NAME_SHORT-darwin-${VSCODE_ARCH}
           (cd .. && mv VSCode-darwin-${VSCODE_ARCH} $BUILD)
           export OPENSSL_LIB_DIR="$PWD/openssl/${VSCODE_ARCH}-osx/lib"
@@ -590,7 +590,7 @@ jobs:
 
       - name: Build server artifacts
         run: |
-          yarn gulp vscode-reh-darwin-$VSCODE_ARCH-min-ci
+          npm run gulp vscode-reh-darwin-$VSCODE_ARCH-min-ci
           SERVER_BUILD_NAME="$APPLICATION_NAME-server-darwin-$VSCODE_ARCH"
           SERVER_ZIP_NAME="$SERVER_BUILD_NAME.zip"
           (cd .. && cp -r vscode-reh-darwin-$VSCODE_ARCH $SERVER_BUILD_NAME)
@@ -598,7 +598,7 @@ jobs:
           mv ../$SERVER_ZIP_NAME .
           echo "SERVER_ZIP_NAME=$SERVER_ZIP_NAME" >>"$GITHUB_ENV"
 
-          yarn gulp vscode-reh-web-darwin-$VSCODE_ARCH-min-ci
+          npm run gulp vscode-reh-web-darwin-$VSCODE_ARCH-min-ci
           SERVER_WEB_BUILD_NAME="$APPLICATION_NAME-server-darwin-$VSCODE_ARCH-web"
           SERVER_WEB_ZIP_NAME="$SERVER_WEB_BUILD_NAME.zip"
           (cd .. && cp -r vscode-reh-web-darwin-$VSCODE_ARCH $SERVER_WEB_BUILD_NAME)
@@ -817,7 +817,7 @@ jobs:
       - name: Build client artifacts
         run: |
           echo "::group::Build binary package"
-          yarn gulp vscode-win32-${VSCODE_ARCH}-min-ci
+          npm run gulp vscode-win32-${VSCODE_ARCH}-min-ci
           OPENSSL_PREBUILT_ARCH=$([ "$VSCODE_ARCH" == "ia32" ] && echo "x86" || echo "$VSCODE_ARCH")
           export OPENSSL_LIB_DIR="$PWD/openssl/${OPENSSL_PREBUILT_ARCH}-windows-static-md/lib"
           export OPENSSL_INCLUDE_DIR="$PWD/openssl/${OPENSSL_PREBUILT_ARCH}-windows-static-md/include"
@@ -836,18 +836,18 @@ jobs:
           echo "ZIP_NAME=$ZIP_NAME" >>"$GITHUB_ENV"
           echo "::endgroup::"
 
-          yarn gulp vscode-win32-${VSCODE_ARCH}-inno-updater
+          npm run gulp vscode-win32-${VSCODE_ARCH}-inno-updater
           curl -L -s -o resources/win32/code.ico $CODE_ICO_URL
 
           echo "::group::Build system setup installer"
-          yarn gulp vscode-win32-${VSCODE_ARCH}-system-setup
+          npm run gulp vscode-win32-${VSCODE_ARCH}-system-setup
           SYSTEM_SETUP_NAME=${NAME_SHORT}Setup-${VSCODE_ARCH}-$VERSION.exe
           mv .build/win32-${VSCODE_ARCH}/system-setup/VSCodeSetup.exe $SYSTEM_SETUP_NAME
           echo "SYSTEM_SETUP_NAME=$SYSTEM_SETUP_NAME" >>"$GITHUB_ENV"
           echo "::endgroup::"
 
           echo "::group::Build user setup installer"
-          yarn gulp vscode-win32-${VSCODE_ARCH}-user-setup
+          npm run gulp vscode-win32-${VSCODE_ARCH}-user-setup
           USER_SETUP_NAME=${NAME_SHORT}UserSetup-${VSCODE_ARCH}-$VERSION.exe
           mv .build/win32-${VSCODE_ARCH}/user-setup/VSCodeSetup.exe $USER_SETUP_NAME
           echo "USER_SETUP_NAME=$USER_SETUP_NAME" >>"$GITHUB_ENV"
@@ -856,7 +856,7 @@ jobs:
       - name: Build server artifacts
         if: ${{ env.VSCODE_ARCH != 'arm64' }}
         run: |
-          yarn gulp vscode-reh-win32-${VSCODE_ARCH}-min-ci
+          npm run gulp vscode-reh-win32-${VSCODE_ARCH}-min-ci
           SERVER_BUILD_NAME="$APPLICATION_NAME-server-win32-${VSCODE_ARCH}"
           SERVER_ZIP_NAME="$SERVER_BUILD_NAME.zip"
           (cd .. && cp -r vscode-reh-win32-${VSCODE_ARCH} $SERVER_BUILD_NAME)
@@ -864,7 +864,7 @@ jobs:
           mv ../$SERVER_ZIP_NAME .
           echo "SERVER_ZIP_NAME=$SERVER_ZIP_NAME" >>"$GITHUB_ENV"
 
-          yarn gulp vscode-reh-web-win32-${VSCODE_ARCH}-min-ci
+          npm run gulp vscode-reh-web-win32-${VSCODE_ARCH}-min-ci
           SERVER_WEB_BUILD_NAME="$APPLICATION_NAME-server-win32-${VSCODE_ARCH}-web"
           SERVER_WEB_ZIP_NAME="$SERVER_WEB_BUILD_NAME.zip"
           (cd .. && cp -r vscode-reh-web-win32-${VSCODE_ARCH} $SERVER_WEB_BUILD_NAME)
@@ -982,7 +982,7 @@ jobs:
 
       - name: Build artifact
         run: |
-          yarn gulp vscode-web-min-ci
+          npm run gulp vscode-web-min-ci
           WEB_BUILD_NAME="$APPLICATION_NAME-web"
           WEB_TARBALL_FILENAME="$APPLICATION_NAME-web.tar.gz"
           (cd .. && cp -r vscode-web $WEB_BUILD_NAME)
