@@ -202,24 +202,22 @@ jobs:
   build-for-linux:
     name: Build for Linux
     runs-on: ubuntu-22.04
-    container:
-      image: vscodehub.azurecr.io/vscode-linux-build-agent:${{ matrix.image-tag }}
-      options: --user 0:0 --cap-add SYS_ADMIN
+    # container:
+    #   image: vscodehub.azurecr.io/vscode-linux-build-agent:centos7-devtoolset8-${{ matrix.arch }}
+    #   options: --user 0:0 --cap-add SYS_ADMIN
     needs: [generate-product-configurations, compile]
     strategy:
       matrix:
         include:
           - arch: x64
-            image-tag: bionic-x64
             rust-host-triple: x86_64-unknown-linux-gnu
           - arch: arm64
-            image-tag: stretch-arm64
             rust-host-triple: aarch64-unknown-linux-gnu
           - arch: armhf
-            image-tag: stretch-armhf
             rust-host-triple: armv7-unknown-linux-gnueabihf
     env:
       VSCODE_ARCH: ${{ matrix.arch }}
+      BUILD_AGENT_IMAGE_TAG: centos7-devtoolset8-${{ matrix.arch }}
       APPLICATION_NAME: ${{ needs.generate-product-configurations.outputs.application-name }}
       CLI_APP_NAME: ${{ needs.generate-product-configurations.outputs.tunnel-application-name }}
       NAME_SHORT: ${{ needs.generate-product-configurations.outputs.name-short }}
@@ -481,7 +479,7 @@ jobs:
 
   build-for-macos:
     name: Build for macOS
-    runs-on: macos-latest
+    runs-on: macos-13
     needs: [generate-product-configurations, compile]
     strategy:
       matrix:
@@ -639,7 +637,7 @@ jobs:
 
   build-universal-application:
     name: Build universal application
-    runs-on: macos-11
+    runs-on: macos-13
     needs: [generate-product-configurations, build-for-macos]
     env:
       VSCODE_ARCH: universal
