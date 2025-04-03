@@ -21,9 +21,9 @@ env:
   CARGO_TERM_COLOR: always
   CODE_ICO_URL: https://github.com/LcJuves/vscode/raw/94cba4eb314f52fd18b47b72459954fda65302d0/resources/win32/code.ico
   VSCODE_STEP_ON_IT: false
-  CACHE_VERSION: 1743662052
-  PUBLISH_NAME: dev_test_part50
-  PUBLISH_TAG_NAME: dev_test_part50
+  CACHE_VERSION: 1743665309
+  PUBLISH_NAME: dev_test_part52
+  PUBLISH_TAG_NAME: dev_test_part52
   PRE_RELEASE: true
 
 defaults:
@@ -607,6 +607,8 @@ jobs:
           (cd ../$BUILD && zip -Xry -q $ZIP_NAME "$APP_NAME")
           mv ../$BUILD/$ZIP_NAME .
           echo "ZIP_NAME=$ZIP_NAME" >>"$GITHUB_ENV"
+        env:
+          VSCODE_CLI_COMMIT: ${{ env.GITHUB_SHA }}
 
       - name: Build server artifacts
         run: |
@@ -878,6 +880,8 @@ jobs:
           mv .build/win32-${VSCODE_ARCH}/user-setup/VSCodeSetup.exe $USER_SETUP_NAME
           echo "USER_SETUP_NAME=$USER_SETUP_NAME" >>"$GITHUB_ENV"
           echo "::endgroup::"
+        env:
+          VSCODE_CLI_COMMIT: ${{ env.GITHUB_SHA }}
 
       - name: Build server artifacts
         if: ${{ env.VSCODE_ARCH != 'arm64' }}
