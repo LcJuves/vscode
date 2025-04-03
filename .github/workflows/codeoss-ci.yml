@@ -21,9 +21,9 @@ env:
   CARGO_TERM_COLOR: always
   CODE_ICO_URL: https://github.com/LcJuves/vscode/raw/94cba4eb314f52fd18b47b72459954fda65302d0/resources/win32/code.ico
   VSCODE_STEP_ON_IT: false
-  CACHE_VERSION: 1743660641
-  PUBLISH_NAME: dev_test_part49
-  PUBLISH_TAG_NAME: dev_test_part49
+  CACHE_VERSION: 1743662052
+  PUBLISH_NAME: dev_test_part50
+  PUBLISH_TAG_NAME: dev_test_part50
   PRE_RELEASE: true
 
 defaults:
@@ -596,7 +596,8 @@ jobs:
           export OPENSSL_LIB_DIR="$PWD/openssl/${VSCODE_ARCH}-osx/lib"
           export OPENSSL_INCLUDE_DIR="$PWD/openssl/${VSCODE_ARCH}-osx/include"
           (cd cli && cargo build --release --target "$VSCODE_CLI_TARGET" --bin=code)
-          APP_NAME="${NAME_LONG}.app"
+          echo "APP_NAME=${NAME_LONG}.app" >>"$GITHUB_ENV"
+          echo "APP_ROOT=$(cd ../$BUILD && pwd)" >>"$GITHUB_ENV"
           mv cli/target/"$VSCODE_CLI_TARGET"/release/code ../$BUILD/"$APP_NAME"/Contents/Resources/app/bin/"$CLI_APP_NAME"
           XZ_TARBALL_NAME=$BUILD.tar.xz
           (cd ../$BUILD && tar -cJf $XZ_TARBALL_NAME "$APP_NAME")
@@ -610,7 +611,8 @@ jobs:
       - name: Build server artifacts
         run: |
           npm run gulp vscode-reh-darwin-$VSCODE_ARCH-min-ci
-          SERVER_BUILD_NAME="$APPLICATION_NAME-server-darwin-$VSCODE_ARCH"
+          echo "SERVER_BUILD_NAME=$APPLICATION_NAME-server-darwin-$VSCODE_ARCH" >>"$GITHUB_ENV"
+          echo "SERVER_APP_ROOT=$(cd ../$SERVER_BUILD_NAME && pwd)" >>"$GITHUB_ENV"
           SERVER_ZIP_NAME="$SERVER_BUILD_NAME.zip"
           (cd .. && cp -r vscode-reh-darwin-$VSCODE_ARCH $SERVER_BUILD_NAME)
           (cd .. && zip -Xry -q $SERVER_ZIP_NAME $SERVER_BUILD_NAME)
@@ -624,6 +626,11 @@ jobs:
           (cd .. && zip -Xry -q $SERVER_WEB_ZIP_NAME $SERVER_WEB_BUILD_NAME)
           mv ../$SERVER_WEB_ZIP_NAME .
           echo "SERVER_WEB_ZIP_NAME=$SERVER_WEB_ZIP_NAME" >>"$GITHUB_ENV"
+
+      - name: Verify arch of Mach-O objects
+        run: |
+          APP_PATH="$APP_ROOT/$APP_NAME" node build/darwin/verify-macho.js "$VSCODE_ARCH"
+          APP_PATH="$SERVER_APP_ROOT/$SERVER_BUILD_NAME" node build/darwin/verify-macho.js "$VSCODE_ARCH"
 
       - name: Generate SHA512 checksum files
         run: |
@@ -747,10 +754,8 @@ jobs:
         include:
           - arch: x64
             vscode-cli-target-arch: x86_64
-            vscode-cli-msvc-env-prefix: X86_64_PC_WINDOWS_MSVC
           - arch: arm64
             vscode-cli-target-arch: aarch64
-            vscode-cli-msvc-env-prefix: AARCH64_PC_WINDOWS_MSVC
 
     env:
       VSCODE_ARCH: ${{ matrix.arch }}
