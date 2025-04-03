@@ -616,7 +616,6 @@ jobs:
         run: |
           npm run gulp vscode-reh-darwin-$VSCODE_ARCH-min-ci
           SERVER_BUILD_NAME="$APPLICATION_NAME-server-darwin-$VSCODE_ARCH"
-          echo "SERVER_BUILD_NAME=$SERVER_BUILD_NAME" >>"$GITHUB_ENV"
           SERVER_ZIP_NAME="$SERVER_BUILD_NAME.zip"
           (cd .. && cp -r vscode-reh-darwin-$VSCODE_ARCH $SERVER_BUILD_NAME)
           SERVER_APP_ROOT="$(cd ../$SERVER_BUILD_NAME && pwd)"
@@ -636,7 +635,7 @@ jobs:
       - name: Verify arch of Mach-O objects
         run: |
           APP_PATH="$APP_ROOT/$APP_NAME" node build/darwin/verify-macho.js "$VSCODE_ARCH"
-          APP_PATH="$SERVER_APP_ROOT/$SERVER_BUILD_NAME" node build/darwin/verify-macho.js "$VSCODE_ARCH"
+          APP_PATH="$SERVER_APP_ROOT" node build/darwin/verify-macho.js "$VSCODE_ARCH"
 
       - name: Generate SHA512 checksum files
         run: |
