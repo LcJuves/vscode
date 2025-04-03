@@ -21,9 +21,9 @@ env:
   CARGO_TERM_COLOR: always
   CODE_ICO_URL: https://github.com/LcJuves/vscode/raw/94cba4eb314f52fd18b47b72459954fda65302d0/resources/win32/code.ico
   VSCODE_STEP_ON_IT: false
-  CACHE_VERSION: 1743648939
-  PUBLISH_NAME: dev_test_part46
-  PUBLISH_TAG_NAME: dev_test_part46
+  CACHE_VERSION: 1743648968
+  PUBLISH_NAME: dev_test_part47
+  PUBLISH_TAG_NAME: dev_test_part47
   PRE_RELEASE: true
 
 defaults:
@@ -558,9 +558,6 @@ jobs:
       - name: Install dependencies
         if: ${{ steps.cache-node-modules.outputs.cache-hit != 'true' }}
         run: |
-          npm install -g node-gyp@latest
-          echo "npm_config_node_gyp=$(which node-gyp)" >>"$GITHUB_ENV"
-
           for i in {1..5}; do # try 5 times
             npm ci && break
             if [ $i -eq 5 ]; then
