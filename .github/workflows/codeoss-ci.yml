@@ -617,10 +617,10 @@ jobs:
           npm run gulp vscode-reh-darwin-$VSCODE_ARCH-min-ci
           SERVER_BUILD_NAME="$APPLICATION_NAME-server-darwin-$VSCODE_ARCH"
           echo "SERVER_BUILD_NAME=$SERVER_BUILD_NAME" >>"$GITHUB_ENV"
-          SERVER_APP_ROOT="$(cd ../$SERVER_BUILD_NAME && pwd)"
-          echo "SERVER_APP_ROOT=$SERVER_APP_ROOT" >>"$GITHUB_ENV"
           SERVER_ZIP_NAME="$SERVER_BUILD_NAME.zip"
           (cd .. && cp -r vscode-reh-darwin-$VSCODE_ARCH $SERVER_BUILD_NAME)
+          SERVER_APP_ROOT="$(cd ../$SERVER_BUILD_NAME && pwd)"
+          echo "SERVER_APP_ROOT=$SERVER_APP_ROOT" >>"$GITHUB_ENV"
           (cd .. && zip -Xry -q $SERVER_ZIP_NAME $SERVER_BUILD_NAME)
           mv ../$SERVER_ZIP_NAME .
           echo "SERVER_ZIP_NAME=$SERVER_ZIP_NAME" >>"$GITHUB_ENV"
