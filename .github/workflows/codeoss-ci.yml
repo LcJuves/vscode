@@ -21,9 +21,9 @@ env:
   CARGO_TERM_COLOR: always
   CODE_ICO_URL: https://github.com/LcJuves/vscode/raw/94cba4eb314f52fd18b47b72459954fda65302d0/resources/win32/code.ico
   VSCODE_STEP_ON_IT: false
-  CACHE_VERSION: 1743665309
-  PUBLISH_NAME: dev_test_part52
-  PUBLISH_TAG_NAME: dev_test_part52
+  CACHE_VERSION: 1743666900
+  PUBLISH_NAME: dev_test_part53
+  PUBLISH_TAG_NAME: dev_test_part53
   PRE_RELEASE: true
 
 defaults:
@@ -596,8 +596,10 @@ jobs:
           export OPENSSL_LIB_DIR="$PWD/openssl/${VSCODE_ARCH}-osx/lib"
           export OPENSSL_INCLUDE_DIR="$PWD/openssl/${VSCODE_ARCH}-osx/include"
           (cd cli && cargo build --release --target "$VSCODE_CLI_TARGET" --bin=code)
-          echo "APP_NAME=${NAME_LONG}.app" >>"$GITHUB_ENV"
-          echo "APP_ROOT=$(cd ../$BUILD && pwd)" >>"$GITHUB_ENV"
+          APP_NAME="${NAME_LONG}.app"
+          echo "APP_NAME=$APP_NAME" >>"$GITHUB_ENV"
+          APP_ROOT="$(cd ../$BUILD && pwd)"
+          echo "APP_ROOT=$APP_ROOT" >>"$GITHUB_ENV"
           mv cli/target/"$VSCODE_CLI_TARGET"/release/code ../$BUILD/"$APP_NAME"/Contents/Resources/app/bin/"$CLI_APP_NAME"
           XZ_TARBALL_NAME=$BUILD.tar.xz
           (cd ../$BUILD && tar -cJf $XZ_TARBALL_NAME "$APP_NAME")
@@ -613,8 +615,10 @@ jobs:
       - name: Build server artifacts
         run: |
           npm run gulp vscode-reh-darwin-$VSCODE_ARCH-min-ci
-          echo "SERVER_BUILD_NAME=$APPLICATION_NAME-server-darwin-$VSCODE_ARCH" >>"$GITHUB_ENV"
-          echo "SERVER_APP_ROOT=$(cd ../$SERVER_BUILD_NAME && pwd)" >>"$GITHUB_ENV"
+          SERVER_BUILD_NAME="$APPLICATION_NAME-server-darwin-$VSCODE_ARCH"
+          echo "SERVER_BUILD_NAME=$SERVER_BUILD_NAME" >>"$GITHUB_ENV"
+          SERVER_APP_ROOT="$(cd ../$SERVER_BUILD_NAME && pwd)"
+          echo "SERVER_APP_ROOT=$SERVER_APP_ROOT" >>"$GITHUB_ENV"
           SERVER_ZIP_NAME="$SERVER_BUILD_NAME.zip"
           (cd .. && cp -r vscode-reh-darwin-$VSCODE_ARCH $SERVER_BUILD_NAME)
           (cd .. && zip -Xry -q $SERVER_ZIP_NAME $SERVER_BUILD_NAME)
@@ -672,6 +676,7 @@ jobs:
     env:
       VSCODE_ARCH: universal
       NAME_SHORT: ${{ needs.generate-product-configurations.outputs.name-short }}
+      NAME_LONG: ${{ needs.generate-product-configurations.outputs.name-long }}
       GITHUB_REPOSITORY: ${{ github.repository }}
 
     steps:
@@ -685,20 +690,18 @@ jobs:
         with:
           name: Product configurations
 
-      - name: Compute node modules cache key
-        id: compute-node-modules-cache-key
-        run: echo "key=$(node build/azure-pipelines/common/computeNodeModulesCacheKey.js darwin x64)" >>"$GITHUB_OUTPUT"
-
-      - name: Cache node modules
-        id: cache-node-modules
-        uses: actions/cache@v3
-        with:
-          path: ".build/node_modules_cache"
-          key: "NodeModules${{ steps.compute-node-modules-cache-key.outputs.key }}${{ env.CACHE_VERSION }}"
-
-      - name: Extract node modules archive
-        if: ${{ steps.cache-node-modules.outputs.cache-hit == 'true' }}
-        run: tar -xJf .build/node_modules_cache/cache.tar.xz
+      - name: Install build dependencies
+        if: ${{ steps.cache-node-modules.outputs.cache-hit != 'true' }}
+        run: |
+          cd build || exit
+          for i in {1..5}; do # try 5 times
+            npm ci && break
+            if [ $i -eq 5 ]; then
+              echo "Npm install failed too many times" >&2
+              exit 1
+            fi
+            echo "Npm install failed $i, trying again..."
+          done
 
       - name: Create Universal App
         run: |
@@ -712,6 +715,10 @@ jobs:
           mkdir ../VSCode-darwin-x64 && mv ./*.app ../VSCode-darwin-x64/
           DEBUG=* node build/darwin/create-universal-app.js "$AGENT_BUILDDIRECTORY"
           BUILD=$NAME_SHORT-darwin-${VSCODE_ARCH}
+          APP_NAME="${NAME_LONG}.app"
+          echo "APP_NAME=$APP_NAME" >>"$GITHUB_ENV"
+          APP_ROOT="$(cd ../$BUILD && pwd)"
+          echo "APP_ROOT=$APP_ROOT" >>"$GITHUB_ENV"
           (cd .. && cp -r VSCode-darwin-${VSCODE_ARCH} $BUILD)
           XZ_TARBALL_NAME=$BUILD.tar.xz
           (cd ../$BUILD && tar -cJf ../$XZ_TARBALL_NAME ./*.app)
@@ -721,6 +728,9 @@ jobs:
           (cd ../$BUILD && zip -r -X -y -q ../$ZIP_NAME ./*.app)
           mv ../$ZIP_NAME .
           echo "ZIP_NAME=$ZIP_NAME" >>"$GITHUB_ENV"
+
+      - name: Verify arch of Mach-O objects
+        run: APP_PATH="$APP_ROOT/$APP_NAME" node build/darwin/verify-macho.js "$VSCODE_ARCH"
 
       - name: Generate SHA512 checksum files
         run: |
