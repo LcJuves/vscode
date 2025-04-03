@@ -837,10 +837,8 @@ jobs:
         run: |
           echo "::group::Build binary package"
           npm run gulp vscode-win32-${VSCODE_ARCH}-min-ci
-          export OPENSSL_LIB_DIR="$PWD/openssl/${VSCODE_ARCH}-windows-static-md/lib"
-          export "${VSCODE_CLI_MSVC_ENV_PREFIX}_OPENSSL_LIB_DIR"="$PWD/openssl/${VSCODE_ARCH}-windows-static-md/lib"
-          export OPENSSL_INCLUDE_DIR="$PWD/openssl/${VSCODE_ARCH}-windows-static-md/include"
-          export "${VSCODE_CLI_MSVC_ENV_PREFIX}_OPENSSL_INCLUDE_DIR"="$PWD/openssl/${VSCODE_ARCH}-windows-static-md/include"
+          export OPENSSL_LIB_DIR="$PWD/openssl/${VSCODE_ARCH}-windows-static/lib"
+          export OPENSSL_INCLUDE_DIR="$PWD/openssl/${VSCODE_ARCH}-windows-static/include"
           (cd cli && cargo build --release --target "$VSCODE_CLI_TARGET" --bin=code)
           DEFAULT_BUILD=VSCode-win32-${VSCODE_ARCH}
           mv cli/target/"$VSCODE_CLI_TARGET"/release/code.exe ../$DEFAULT_BUILD/bin/"$CLI_APP_NAME.exe"
