@@ -754,8 +754,12 @@ jobs:
         include:
           - arch: x64
             vscode-cli-target-arch: x86_64
+            env:
+              RUSTFLAGS: "-Ctarget-feature=+crt-static -Clink-args=/guard:cf -Clink-args=/CETCOMPAT"
           - arch: arm64
             vscode-cli-target-arch: aarch64
+            env:
+              RUSTFLAGS: "-C target-feature=+crt-static -Clink-args=/guard:cf -Clink-args=/CETCOMPAT:NO"
 
     env:
       VSCODE_ARCH: ${{ matrix.arch }}
@@ -764,8 +768,7 @@ jobs:
       NAME_SHORT: ${{ needs.generate-product-configurations.outputs.name-short }}
       VERSION: ${{ needs.generate-product-configurations.outputs.version }}
       VSCODE_CLI_TARGET: ${{ matrix.vscode-cli-target-arch }}-pc-windows-msvc
-      VSCODE_CLI_MSVC_ENV_PREFIX: ${{ matrix.vscode-cli-msvc-env-prefix }}
-      RUSTFLAGS: "-Ctarget-feature=+crt-static -Clink-args=/guard:cf -Clink-args=/CETCOMPAT"
+      CARGO_NET_GIT_FETCH_WITH_CLI: true
       CFLAGS: "/guard:cf /Qspectre"
 
     steps:
