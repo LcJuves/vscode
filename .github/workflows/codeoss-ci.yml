@@ -21,9 +21,9 @@ env:
   CARGO_TERM_COLOR: always
   CODE_ICO_URL: https://github.com/LcJuves/vscode/raw/94cba4eb314f52fd18b47b72459954fda65302d0/resources/win32/code.ico
   VSCODE_STEP_ON_IT: false
-  CACHE_VERSION: 1743649978
-  PUBLISH_NAME: dev_test_part48
-  PUBLISH_TAG_NAME: dev_test_part48
+  CACHE_VERSION: 1743660641
+  PUBLISH_NAME: dev_test_part49
+  PUBLISH_TAG_NAME: dev_test_part49
   PRE_RELEASE: true
 
 defaults:
@@ -965,11 +965,15 @@ jobs:
           path: ".build/node_modules_cache"
           key: "WebNodeModules${{ steps.compute-node-modules-cache-key.outputs.key }}${{ env.CACHE_VERSION }}"
 
-      - name: Install build dependencies
-        if: ${{ steps.cache-node-modules.outputs.cache-hit != 'true' }}
+      - name: Extract node modules archive
+        if: ${{ steps.cache-node-modules.outputs.cache-hit == 'true' }}
+        run: tar -xJf .build/node_modules_cache/cache.tar.xz
+
+      - name: Setup system services
+        if: ${{ env.VSCODE_ARCH == 'x64' }}
         run: |
-          sudo apt-get update -y
-          sudo apt-get install -y libkrb5-dev
+          ./build/azure-pipelines/linux/apt-retry.sh sudo apt-get update
+          ./build/azure-pipelines/linux/apt-retry.sh sudo apt-get install -y libkrb5-dev
 
       - name: Install dependencies
         if: ${{ steps.cache-node-modules.outputs.cache-hit != 'true' }}
