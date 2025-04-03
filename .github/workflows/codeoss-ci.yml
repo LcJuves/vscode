@@ -21,9 +21,9 @@ env:
   CARGO_TERM_COLOR: always
   CODE_ICO_URL: https://github.com/LcJuves/vscode/raw/94cba4eb314f52fd18b47b72459954fda65302d0/resources/win32/code.ico
   VSCODE_STEP_ON_IT: false
-  CACHE_VERSION: 1743664814
-  PUBLISH_NAME: dev_test_part51
-  PUBLISH_TAG_NAME: dev_test_part51
+  CACHE_VERSION: 1743662052
+  PUBLISH_NAME: dev_test_part50
+  PUBLISH_TAG_NAME: dev_test_part50
   PRE_RELEASE: true
 
 defaults:
@@ -245,7 +245,6 @@ jobs:
       VSCODE_QUALITY: ${{ needs.generate-product-configurations.outputs.vscode-quality }}
       VERSION: ${{ needs.generate-product-configurations.outputs.version }}
       VSCODE_CLI_TARGET: ${{ matrix.vscode-cli-target }}
-      VSCODE_CLI_COMMIT: ${{ env.GITHUB_SHA }}
 
     steps:
       - uses: actions/checkout@v3
@@ -517,7 +516,6 @@ jobs:
       NAME_SHORT: ${{ needs.generate-product-configurations.outputs.name-short }}
       NAME_LONG: ${{ needs.generate-product-configurations.outputs.name-long }}
       VSCODE_CLI_TARGET: ${{ matrix.vscode-cli-target-arch }}-apple-darwin
-      VSCODE_CLI_COMMIT: ${{ env.GITHUB_SHA }}
 
     steps:
       - uses: actions/checkout@v3
@@ -770,7 +768,6 @@ jobs:
       NAME_SHORT: ${{ needs.generate-product-configurations.outputs.name-short }}
       VERSION: ${{ needs.generate-product-configurations.outputs.version }}
       VSCODE_CLI_TARGET: ${{ matrix.vscode-cli-target-arch }}-pc-windows-msvc
-      VSCODE_CLI_COMMIT: ${{ env.GITHUB_SHA }}
       CARGO_NET_GIT_FETCH_WITH_CLI: true
       CFLAGS: "/guard:cf /Qspectre"
 
