@@ -21,9 +21,9 @@ env:
   CARGO_TERM_COLOR: always
   CODE_ICO_URL: https://github.com/LcJuves/vscode/raw/94cba4eb314f52fd18b47b72459954fda65302d0/resources/win32/code.ico
   VSCODE_STEP_ON_IT: false
-  CACHE_VERSION: 1743648968
-  PUBLISH_NAME: dev_test_part47
-  PUBLISH_TAG_NAME: dev_test_part47
+  CACHE_VERSION: 1743649978
+  PUBLISH_NAME: dev_test_part48
+  PUBLISH_TAG_NAME: dev_test_part48
   PRE_RELEASE: true
 
 defaults:
@@ -747,8 +747,10 @@ jobs:
         include:
           - arch: x64
             vscode-cli-target-arch: x86_64
+            vscode-cli-msvc-env-prefix: X86_64_PC_WINDOWS_MSVC
           - arch: arm64
             vscode-cli-target-arch: aarch64
+            vscode-cli-msvc-env-prefix: AARCH64_PC_WINDOWS_MSVC
 
     env:
       VSCODE_ARCH: ${{ matrix.arch }}
@@ -757,6 +759,7 @@ jobs:
       NAME_SHORT: ${{ needs.generate-product-configurations.outputs.name-short }}
       VERSION: ${{ needs.generate-product-configurations.outputs.version }}
       VSCODE_CLI_TARGET: ${{ matrix.vscode-cli-target-arch }}-pc-windows-msvc
+      VSCODE_CLI_MSVC_ENV_PREFIX: ${{ matrix.vscode-cli-msvc-env-prefix }}
       RUSTFLAGS: "-Ctarget-feature=+crt-static -Clink-args=/guard:cf -Clink-args=/CETCOMPAT"
       CFLAGS: "/guard:cf /Qspectre"
 
@@ -835,7 +838,9 @@ jobs:
           echo "::group::Build binary package"
           npm run gulp vscode-win32-${VSCODE_ARCH}-min-ci
           export OPENSSL_LIB_DIR="$PWD/openssl/${VSCODE_ARCH}-windows-static-md/lib"
+          export "${VSCODE_CLI_MSVC_ENV_PREFIX}_OPENSSL_LIB_DIR"="$PWD/openssl/${VSCODE_ARCH}-windows-static-md/lib"
           export OPENSSL_INCLUDE_DIR="$PWD/openssl/${VSCODE_ARCH}-windows-static-md/include"
+          export "${VSCODE_CLI_MSVC_ENV_PREFIX}_OPENSSL_INCLUDE_DIR"="$PWD/openssl/${VSCODE_ARCH}-windows-static-md/include"
           (cd cli && cargo build --release --target "$VSCODE_CLI_TARGET" --bin=code)
           DEFAULT_BUILD=VSCode-win32-${VSCODE_ARCH}
           mv cli/target/"$VSCODE_CLI_TARGET"/release/code.exe ../$DEFAULT_BUILD/bin/"$CLI_APP_NAME.exe"
