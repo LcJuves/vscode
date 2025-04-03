@@ -21,10 +21,11 @@ env:
   CARGO_TERM_COLOR: always
   CODE_ICO_URL: https://github.com/LcJuves/vscode/raw/94cba4eb314f52fd18b47b72459954fda65302d0/resources/win32/code.ico
   VSCODE_STEP_ON_IT: false
-  CACHE_VERSION: 1743662052
-  PUBLISH_NAME: dev_test_part50
-  PUBLISH_TAG_NAME: dev_test_part50
+  CACHE_VERSION: 1743663690
+  PUBLISH_NAME: dev_test_part51
+  PUBLISH_TAG_NAME: dev_test_part51
   PRE_RELEASE: true
+  VSCODE_CLI_COMMIT: ${{ env.GITHUB_SHA }}
 
 defaults:
   run:
@@ -170,7 +171,7 @@ jobs:
         timeout-minutes: 90
         run: |
           npm exec -- npm-run-all -lp \
-              core-ci-pr extensions-ci-pr hygiene eslint \
+              core-ci extensions-ci hygiene eslint \
               valid-layers-check vscode-dts-compile-check tsec-compile-check
 
       # - name: Compile smoke test suites
