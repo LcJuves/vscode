@@ -21,9 +21,9 @@ env:
   CARGO_TERM_COLOR: always
   CODE_ICO_URL: https://github.com/LcJuves/vscode/raw/94cba4eb314f52fd18b47b72459954fda65302d0/resources/win32/code.ico
   VSCODE_STEP_ON_IT: false
-  CACHE_VERSION: 1743646189
-  PUBLISH_NAME: dev_test_part45
-  PUBLISH_TAG_NAME: dev_test_part45
+  CACHE_VERSION: 1743648939
+  PUBLISH_NAME: dev_test_part46
+  PUBLISH_TAG_NAME: dev_test_part46
   PRE_RELEASE: true
 
 defaults:
@@ -231,11 +231,11 @@ jobs:
       matrix:
         include:
           - arch: x64
-            rust-host-triple: x86_64-unknown-linux-gnu
+            vscode-cli-target: x86_64-unknown-linux-gnu
           - arch: arm64
-            rust-host-triple: aarch64-unknown-linux-gnu
+            vscode-cli-target: aarch64-unknown-linux-gnu
           - arch: armhf
-            rust-host-triple: armv7-unknown-linux-gnueabihf
+            vscode-cli-target: armv7-unknown-linux-gnueabihf
     env:
       VSCODE_ARCH: ${{ matrix.arch }}
       BUILD_AGENT_IMAGE_TAG: centos7-devtoolset8-${{ matrix.arch }}
@@ -244,7 +244,7 @@ jobs:
       NAME_SHORT: ${{ needs.generate-product-configurations.outputs.name-short }}
       VSCODE_QUALITY: ${{ needs.generate-product-configurations.outputs.vscode-quality }}
       VERSION: ${{ needs.generate-product-configurations.outputs.version }}
-      RUST_HOST_TRIPLE: ${{ matrix.rust-host-triple }}
+      VSCODE_CLI_TARGET: ${{ matrix.vscode-cli-target }}
 
     steps:
       - uses: actions/checkout@v3
@@ -254,7 +254,7 @@ jobs:
       - uses: MeyouRepo/actions-marketplace-validations--ATiltedTree_setup-rust@v1.0.5
         with:
           rust-version: ${{ env.RUST_VERSION }}
-          targets: ${{ matrix.rust-host-triple }}
+          targets: ${{ matrix.vscode-cli-target }}
 
       - name: Download product configurations
         uses: actions/download-artifact@v4.1.9
@@ -506,16 +506,16 @@ jobs:
       matrix:
         include:
           - arch: x64
-            rust-host-triple-arch: x86_64
+            vscode-cli-target-arch: x86_64
           - arch: arm64
-            rust-host-triple-arch: aarch64
+            vscode-cli-target-arch: aarch64
     env:
       VSCODE_ARCH: ${{ matrix.arch }}
       APPLICATION_NAME: ${{ needs.generate-product-configurations.outputs.application-name }}
       CLI_APP_NAME: ${{ needs.generate-product-configurations.outputs.tunnel-application-name }}
       NAME_SHORT: ${{ needs.generate-product-configurations.outputs.name-short }}
       NAME_LONG: ${{ needs.generate-product-configurations.outputs.name-long }}
-      RUST_HOST_TRIPLE: ${{ matrix.rust-host-triple-arch }}-apple-darwin
+      VSCODE_CLI_TARGET: ${{ matrix.vscode-cli-target-arch }}-apple-darwin
 
     steps:
       - uses: actions/checkout@v3
@@ -525,7 +525,7 @@ jobs:
       - uses: MeyouRepo/actions-marketplace-validations--ATiltedTree_setup-rust@v1.0.5
         with:
           rust-version: ${{ env.RUST_VERSION }}
-          targets: ${{ env.RUST_HOST_TRIPLE }}
+          targets: ${{ env.VSCODE_CLI_TARGET }}
 
       - name: Download product configurations
         uses: actions/download-artifact@v4.1.9
@@ -559,10 +559,7 @@ jobs:
         if: ${{ steps.cache-node-modules.outputs.cache-hit != 'true' }}
         run: |
           npm install -g node-gyp@latest
-          npm_config_arch=$VSCODE_ARCH
-          export npm_config_arch
-          npm_config_node_gyp=$(which node-gyp)
-          export npm_config_node_gyp
+          echo "npm_config_node_gyp=$(which node-gyp)" >>"$GITHUB_ENV"
 
           for i in {1..5}; do # try 5 times
             npm ci && break
@@ -573,8 +570,14 @@ jobs:
             echo "Npm install failed $i, trying again..."
           done
         env:
+          npm_config_arch: ${{ env.VSCODE_ARCH }}
           ELECTRON_SKIP_BINARY_DOWNLOAD: 1
           PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD: 1
+          # Avoid using dlopen to load Kerberos on macOS which can cause missing libraries
+          # https://github.com/mongodb-js/kerberos/commit/04044d2814ad1d01e77f1ce87f26b03d86692cf2
+          # flipped the default to support legacy linux distros which shouldn't happen
+          # on macOS.
+          GYP_DEFINES: "kerberos_use_rtld=false"
 
       - name: Create node modules archive
         if: ${{ steps.cache-node-modules.outputs.cache-hit != 'true' }}
@@ -595,9 +598,9 @@ jobs:
           (cd .. && mv VSCode-darwin-${VSCODE_ARCH} $BUILD)
           export OPENSSL_LIB_DIR="$PWD/openssl/${VSCODE_ARCH}-osx/lib"
           export OPENSSL_INCLUDE_DIR="$PWD/openssl/${VSCODE_ARCH}-osx/include"
-          (cd cli && cargo build --release --target "$RUST_HOST_TRIPLE" --bin=code)
+          (cd cli && cargo build --release --target "$VSCODE_CLI_TARGET" --bin=code)
           APP_NAME="${NAME_LONG}.app"
-          mv cli/target/"$RUST_HOST_TRIPLE"/release/code ../$BUILD/"$APP_NAME"/Contents/Resources/app/bin/"$CLI_APP_NAME"
+          mv cli/target/"$VSCODE_CLI_TARGET"/release/code ../$BUILD/"$APP_NAME"/Contents/Resources/app/bin/"$CLI_APP_NAME"
           XZ_TARBALL_NAME=$BUILD.tar.xz
           (cd ../$BUILD && tar -cJf $XZ_TARBALL_NAME "$APP_NAME")
           mv ../$BUILD/$XZ_TARBALL_NAME .
@@ -746,9 +749,9 @@ jobs:
       matrix:
         include:
           - arch: x64
-            rust-host-triple-arch: x86_64
+            vscode-cli-target-arch: x86_64
           - arch: arm64
-            rust-host-triple-arch: aarch64
+            vscode-cli-target-arch: aarch64
 
     env:
       VSCODE_ARCH: ${{ matrix.arch }}
@@ -756,7 +759,7 @@ jobs:
       CLI_APP_NAME: ${{ needs.generate-product-configurations.outputs.tunnel-application-name }}
       NAME_SHORT: ${{ needs.generate-product-configurations.outputs.name-short }}
       VERSION: ${{ needs.generate-product-configurations.outputs.version }}
-      RUST_HOST_TRIPLE: ${{ matrix.rust-host-triple-arch }}-pc-windows-msvc
+      VSCODE_CLI_TARGET: ${{ matrix.vscode-cli-target-arch }}-pc-windows-msvc
       RUSTFLAGS: "-Ctarget-feature=+crt-static -Clink-args=/guard:cf -Clink-args=/CETCOMPAT"
       CFLAGS: "/guard:cf /Qspectre"
 
@@ -771,7 +774,7 @@ jobs:
       - uses: MeyouRepo/actions-marketplace-validations--ATiltedTree_setup-rust@v1.0.5
         with:
           rust-version: ${{ env.RUST_VERSION }}
-          targets: ${{ env.RUST_HOST_TRIPLE }}
+          targets: ${{ env.VSCODE_CLI_TARGET }}
 
       - name: Download product configurations
         uses: actions/download-artifact@v4.1.9
@@ -836,9 +839,9 @@ jobs:
           npm run gulp vscode-win32-${VSCODE_ARCH}-min-ci
           export OPENSSL_LIB_DIR="$PWD/openssl/${VSCODE_ARCH}-windows-static-md/lib"
           export OPENSSL_INCLUDE_DIR="$PWD/openssl/${VSCODE_ARCH}-windows-static-md/include"
-          (cd cli && cargo build --release --target "$RUST_HOST_TRIPLE" --bin=code)
+          (cd cli && cargo build --release --target "$VSCODE_CLI_TARGET" --bin=code)
           DEFAULT_BUILD=VSCode-win32-${VSCODE_ARCH}
-          mv cli/target/"$RUST_HOST_TRIPLE"/release/code.exe ../$DEFAULT_BUILD/bin/"$CLI_APP_NAME.exe"
+          mv cli/target/"$VSCODE_CLI_TARGET"/release/code.exe ../$DEFAULT_BUILD/bin/"$CLI_APP_NAME.exe"
           BUILD=$NAME_SHORT-win32-${VSCODE_ARCH}
           (cd .. && cp -r $DEFAULT_BUILD $BUILD)
           XZ_TARBALL_NAME=$BUILD-$VERSION.tar.xz
