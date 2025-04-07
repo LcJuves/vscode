@@ -13,12 +13,7 @@ import { EventEmitter } from 'events';
 import * as filetype from 'file-type';
 import { assign, groupBy, IDisposable, toDisposable, dispose, mkdirp, readBytes, detectUnicodeEncoding, Encoding, onceEvent, splitInChunks, Limiter, Versions, isWindows, pathEquals, isMacintosh, isDescendant, relativePath } from './util';
 import { CancellationError, CancellationToken, ConfigurationChangeEvent, LogOutputChannel, Progress, Uri, workspace } from 'vscode';
-<<<<<<< HEAD
-import { detectEncoding } from './encoding';
-import { Ref, RefType, Branch, Remote, ForcePushMode, GitErrorCodes, LogOptions, Change, Status, CommitOptions, RefQuery, InitOptions } from './api/git';
-=======
 import { Commit as ApiCommit, Ref, RefType, Branch, Remote, ForcePushMode, GitErrorCodes, LogOptions, Change, Status, CommitOptions, RefQuery as ApiRefQuery, InitOptions } from './api/git';
->>>>>>> origin/real-time-synchronization
 import * as byline from 'byline';
 import { StringDecoder } from 'string_decoder';
 
@@ -1406,8 +1401,9 @@ export class Repository {
 			.filter(entry => !!entry);
 	}
 
-	async buffer(object: string): Promise<Buffer> {
-		const child = this.stream(['show', '--textconv', object]);
+	async buffer(ref: string, filePath: string): Promise<Buffer> {
+		const relativePath = sanitizeRelativePath(this.repositoryRoot, filePath);
+		const child = this.stream(['show', '--textconv', `${ref}:${relativePath}`]);
 
 		if (!child.stdout) {
 			return Promise.reject<Buffer>('Can\'t open file from git');

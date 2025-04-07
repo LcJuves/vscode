@@ -189,43 +189,7 @@ export class ChatEditingModifiedNotebookEntry extends AbstractChatEditingModifie
 		this.initialContent = initialContent;
 		this.initializeModelsFromDiff();
 		this._register(this.modifiedModel.onDidChangeContent(this.mirrorNotebookEdits, this));
-<<<<<<< HEAD
-		this._maxModifiedLineNumbers.set(this.modifiedModel.cells.map(() => 0), undefined);
-
-		if (this.modifiedURI.scheme !== Schemas.untitled) {
-			this._register(this._fileService.watch(this.modifiedURI));
-			this._register(this._fileService.onDidFilesChange(e => {
-				if (e.affects(this.modifiedURI) && kind === ChatEditKind.Created && e.gotDeleted()) {
-					this._onDidDelete.fire();
-				}
-			}));
-		}
-
-		const diffs = cellDiffInfo.map((diff, i) => {
-			switch (diff.type) {
-				case 'unchanged': {
-					const modifiedCell = this.modifiedModel.cells[diff.modifiedCellIndex];
-					const originalCell = this.originalModel.cells[diff.originalCellIndex];
-					const originalCellModel = this.originalCellModels.get(originalCell.uri)!;
-					this.modifiedToOriginalCellMap.set(modifiedCell.uri, originalCellModel);
-					this.getOrCreateModifiedTextFileEntryForCell(modifiedCell);
-					return this.createUnchangedCellDiffInfo(diff.originalCellIndex, diff.modifiedCellIndex);
-				}
-				case 'delete':
-					return this.createDeleteCellDiffInfo(diff.originalCellIndex);
-				case 'insert': {
-					const cell = this.modifiedModel.cells[diff.modifiedCellIndex];
-					return this.createInsertedCellDiffInfo(diff.modifiedCellIndex, this.modifiedCellModels.get(cell.uri)!);
-				}
-				default: {
-					const modifiedCell = this.modifiedModel.cells[diff.modifiedCellIndex];
-					const originalCell = this.originalModel.cells[diff.originalCellIndex];
-					const orgiginalCellModel = this.originalCellModels.get(originalCell.uri)!;
-					this.modifiedToOriginalCellMap.set(modifiedCell.uri, orgiginalCellModel);
-					this.getOrCreateModifiedTextFileEntryForCell(modifiedCell);
-=======
 	}
->>>>>>> origin/real-time-synchronization
 
 	initializeModelsFromDiffImpl(cellsDiffInfo: CellDiffInfo[]) {
 		this.cellEntryMap.forEach(entry => entry.dispose());

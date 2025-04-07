@@ -7,7 +7,6 @@ import TelemetryReporter from '@vscode/extension-telemetry';
 import * as fs from 'fs';
 import * as path from 'path';
 import picomatch from 'picomatch';
-import * as iconv from '@vscode/iconv-lite-umd';
 import { CancellationError, CancellationToken, CancellationTokenSource, Command, commands, Disposable, Event, EventEmitter, FileDecoration, l10n, LogLevel, LogOutputChannel, Memento, ProgressLocation, ProgressOptions, QuickDiffProvider, RelativePattern, scm, SourceControl, SourceControlInputBox, SourceControlInputBoxValidation, SourceControlInputBoxValidationType, SourceControlResourceDecorations, SourceControlResourceGroup, SourceControlResourceState, TabInputNotebookDiff, TabInputTextDiff, TabInputTextMultiDiff, ThemeColor, Uri, window, workspace, WorkspaceEdit } from 'vscode';
 import { ActionButton } from './actionButton';
 import { ApiRepository } from './api/api1';
@@ -25,7 +24,6 @@ import { StatusBarCommands } from './statusbar';
 import { toGitUri } from './uri';
 import { anyEvent, combinedDisposable, debounceEvent, dispose, EmptyDisposable, eventToPromise, filterEvent, find, getCommitShortHash, IDisposable, isDescendant, isLinuxSnap, isRemote, Limiter, onceEvent, pathEquals, relativePath } from './util';
 import { IFileWatcher, watch } from './watch';
-import { detectEncoding } from './encoding';
 import { ISourceControlHistoryItemDetailsProviderRegistry } from './historyItemDetailsProvider';
 
 const timeout = (millis: number) => new Promise(c => setTimeout(c, millis));
@@ -1222,25 +1220,10 @@ export class Repository implements Disposable {
 		await this.run(Operation.Remove, () => this.repository.rm(resources.map(r => r.fsPath)));
 	}
 
-	async stage(resource: Uri, contents: string): Promise<void> {
-		const path = relativePath(this.repository.root, resource.fsPath).replace(/\\/g, '/');
+	async stage(resource: Uri, contents: string, encoding: string): Promise<void> {
 		await this.run(Operation.Stage, async () => {
-<<<<<<< HEAD
-			const configFiles = workspace.getConfiguration('files', Uri.file(resource.fsPath));
-			let encoding = configFiles.get<string>('encoding') ?? 'utf8';
-			const autoGuessEncoding = configFiles.get<boolean>('autoGuessEncoding') === true;
-			const candidateGuessEncodings = configFiles.get<string[]>('candidateGuessEncodings') ?? [];
-
-			if (autoGuessEncoding) {
-				encoding = detectEncoding(Buffer.from(contents), candidateGuessEncodings) ?? encoding;
-			}
-
-			encoding = iconv.encodingExists(encoding) ? encoding : 'utf8';
-			await this.repository.stage(path, contents, encoding);
-=======
 			const data = await workspace.encode(contents, resource, { encoding });
 			await this.repository.stage(resource.fsPath, data);
->>>>>>> origin/real-time-synchronization
 
 			this._onDidChangeOriginalResource.fire(resource);
 			this.closeDiffEditors([], [...resource.fsPath]);
@@ -1989,20 +1972,6 @@ export class Repository implements Disposable {
 
 	async show(ref: string, filePath: string): Promise<string> {
 		return await this.run(Operation.Show, async () => {
-<<<<<<< HEAD
-			const path = relativePath(this.repository.root, filePath).replace(/\\/g, '/');
-			const configFiles = workspace.getConfiguration('files', Uri.file(filePath));
-			const defaultEncoding = configFiles.get<string>('encoding');
-			const autoGuessEncoding = configFiles.get<boolean>('autoGuessEncoding');
-			const candidateGuessEncodings = configFiles.get<string[]>('candidateGuessEncodings');
-
-			try {
-				return await this.repository.bufferString(`${ref}:${path}`, defaultEncoding, autoGuessEncoding, candidateGuessEncodings);
-			} catch (err) {
-				if (err.gitErrorCode === GitErrorCodes.WrongCase) {
-					const gitRelativePath = await this.repository.getGitRelativePath(ref, path);
-					return await this.repository.bufferString(`${ref}:${gitRelativePath}`, defaultEncoding, autoGuessEncoding, candidateGuessEncodings);
-=======
 			try {
 				const content = await this.repository.buffer(ref, filePath);
 				return await workspace.decode(content, Uri.file(filePath));
@@ -2011,7 +1980,6 @@ export class Repository implements Disposable {
 					const gitFilePath = await this.repository.getGitFilePath(ref, filePath);
 					const content = await this.repository.buffer(ref, gitFilePath);
 					return await workspace.decode(content, Uri.file(filePath));
->>>>>>> origin/real-time-synchronization
 				}
 
 				throw err;
