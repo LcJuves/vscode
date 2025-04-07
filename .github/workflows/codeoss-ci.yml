@@ -22,8 +22,8 @@ env:
   CODE_ICO_URL: https://github.com/LcJuves/vscode/raw/94cba4eb314f52fd18b47b72459954fda65302d0/resources/win32/code.ico
   VSCODE_STEP_ON_IT: false
   CACHE_VERSION: 1744010508
-  PUBLISH_NAME: dev_pre_part1
-  PUBLISH_TAG_NAME: dev_pre_part1
+  PUBLISH_NAME: dev_pre_part2
+  PUBLISH_TAG_NAME: dev_pre_part2
   PRE_RELEASE: true
 
 defaults:
@@ -178,7 +178,7 @@ jobs:
       #   run: |
       #     set -e
       #     npm run compile
-      #   workDirectory: test/smoke
+      #   working-directory: test/smoke
 
       # - name: Extract Telemetry
       #   run: |
@@ -224,7 +224,7 @@ jobs:
     name: Build for Linux
     runs-on: ubuntu-22.04
     # container:
-    #   image: vscodehub.azurecr.io/vscode-linux-build-agent:centos7-devtoolset8-${{ matrix.arch }}
+    #   image: vscodehub.azurecr.io/vscode-linux-build-agent:${{ env.BUILD_AGENT_IMAGE_TAG }}
     #   options: --user 0:0 --cap-add SYS_ADMIN
     needs: [generate-product-configurations, compile]
     strategy:
@@ -264,16 +264,29 @@ jobs:
       - name: Initialize job variables
         run: |
           NPM_ARCH=$VSCODE_ARCH
-          [ "${NPM_ARCH}" == "armhf" ] && NPM_ARCH=armv7l
+          [ "${NPM_ARCH}" == "armhf" ] && NPM_ARCH=arm
           echo "NPM_ARCH=$NPM_ARCH" >>"$GITHUB_ENV"
-          [ "$VSCODE_ARCH" == "x64" ] && echo "DISPLAY=:10" >>"$GITHUB_ENV"
+          [ "$VSCODE_ARCH" == "x64" ] && echo "DISPLAY=\":10\"" >>"$GITHUB_ENV"
 
       - name: Setup system services
         if: ${{ env.VSCODE_ARCH == 'x64' }}
         run: |
           # Start X server
-          /etc/init.d/xvfb start
+          ./build/azure-pipelines/linux/apt-retry.sh sudo apt-get update
+          ./build/azure-pipelines/linux/apt-retry.sh sudo apt-get install -y pkg-config \
+            dbus \
+            xvfb \
+            libgtk-3-0 \
+            libxkbfile-dev \
+            libkrb5-dev \
+            libgbm1 \
+            rpm
+          sudo cp build/azure-pipelines/linux/xvfb.init /etc/init.d/xvfb
+          sudo chmod +x /etc/init.d/xvfb
+          sudo update-rc.d xvfb defaults
+          sudo service xvfb start
           # Start dbus session
+          sudo mkdir -p /var/run/dbus
           DBUS_LAUNCH_RESULT=$(sudo dbus-daemon --config-file=/usr/share/dbus-1/system.conf --print-address)
           echo "DBUS_SESSION_BUS_ADDRESS=$DBUS_LAUNCH_RESULT" >>"$GITHUB_ENV"
 
@@ -301,6 +314,7 @@ jobs:
         run: tar -xJf .build/node_modules_cache/cache.tar.xz
 
       - name: Install build dependencies
+        if: ${{ steps.cache-node-modules.outputs.cache-hit != 'true' }}
         run: |
           for i in {1..5}; do # try 5 times
             npm ci && break
@@ -310,6 +324,37 @@ jobs:
             fi
             echo "Npm install failed $i, trying again..."
           done
+        working-directory: build
+
+      - name: Download vscode sysroots
+        run: |
+          SYSROOT_ARCH=$VSCODE_ARCH
+          if [ "$SYSROOT_ARCH" == "x64" ]; then
+            SYSROOT_ARCH="amd64"
+          fi
+          export VSCODE_SYSROOT_DIR=$PWD/.build/sysroots
+          SYSROOT_ARCH="$SYSROOT_ARCH" node -e '(async () => { const { getVSCodeSysroot } = require("./build/linux/debian/install-sysroot.js"); await getVSCodeSysroot(process.env["SYSROOT_ARCH"]); })()'
+
+      - name: Override gnu target for arm64 and arm
+        if: ${{ env.VSCODE_ARCH == 'arm64' || env.VSCODE_ARCH == 'armhf' }}
+        run: |
+          includes=$(cat << 'EOF'
+          {
+            "target_defaults": {
+              "conditions": [
+                ["OS=='linux'", {
+                  'cflags_cc!': [ '-std=gnu++20' ],
+                  'cflags_cc': [ '-std=gnu++2a' ],
+                }]
+              ]
+            }
+          }
+          EOF
+          )
+          if [ ! -d "$HOME/.gyp" ]; then
+            mkdir -p "$HOME/.gyp"
+          fi
+          echo "$includes" > "$HOME/.gyp/include.gypi"
 
       - name: Install dependencies
         if: ${{ steps.cache-node-modules.outputs.cache-hit != 'true' }}
@@ -325,6 +370,7 @@ jobs:
             echo "Npm install failed $i, trying again..."
           done
         env:
+          npm_config_arch: ${{ env.NPM_ARCH }}
           ELECTRON_SKIP_BINARY_DOWNLOAD: 1
           PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD: 1
 
@@ -443,6 +489,7 @@ jobs:
           SERVER_BUILD_NAME="$APPLICATION_NAME-server-linux-${VSCODE_ARCH}"
           SERVER_TARBALL_FILENAME="$SERVER_BUILD_NAME.tar.gz"
           (cd .. && cp -r vscode-reh-linux-${VSCODE_ARCH} $SERVER_BUILD_NAME)
+          echo "UNARCHIVE_PATH=$(cd ../$SERVER_BUILD_NAME && pwd)" >>"$GITHUB_ENV"
           (cd .. && tar -zcf $SERVER_TARBALL_FILENAME $SERVER_BUILD_NAME)
           mv ../$SERVER_TARBALL_FILENAME .
           echo "SERVER_TARBALL_FILENAME=$SERVER_TARBALL_FILENAME" >>"$GITHUB_ENV"
@@ -454,6 +501,18 @@ jobs:
           (cd .. && tar -zcf $SERVER_WEB_TARBALL_FILENAME $SERVER_WEB_BUILD_NAME)
           mv ../$SERVER_WEB_TARBALL_FILENAME .
           echo "SERVER_WEB_TARBALL_FILENAME=$SERVER_WEB_TARBALL_FILENAME" >>"$GITHUB_ENV"
+
+          echo "::group::Check GLIBC and GLIBCXX dependencies in server archive"
+          export SEARCH_PATH="$SERVER_UNARCHIVE_PATH"
+          export npm_config_arch="$NPM_ARCH"
+          export EXPECTED_GLIBC_VERSION="2.28"
+          if [[ $VSCODE_ARCH == 'x64' || $VSCODE_ARCH == 'arm64' ]]; then
+            export EXPECTED_GLIBCXX_VERSION="3.4.25"
+          else
+            export EXPECTED_GLIBCXX_VERSION="3.4.26"
+          fi
+          ./build/azure-pipelines/linux/verify-glibc-requirements.sh
+          echo "::endgroup::"
 
       - name: Generate SHA512 checksum files
         run: |
@@ -690,9 +749,7 @@ jobs:
           name: Product configurations
 
       - name: Install build dependencies
-        if: ${{ steps.cache-node-modules.outputs.cache-hit != 'true' }}
         run: |
-          cd build || exit
           for i in {1..5}; do # try 5 times
             npm ci && break
             if [ $i -eq 5 ]; then
@@ -701,6 +758,7 @@ jobs:
             fi
             echo "Npm install failed $i, trying again..."
           done
+        working-directory: build
 
       - name: Create Universal App
         run: |
