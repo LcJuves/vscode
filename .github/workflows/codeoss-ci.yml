@@ -266,7 +266,7 @@ jobs:
           NPM_ARCH=$VSCODE_ARCH
           [ "${NPM_ARCH}" == "armhf" ] && NPM_ARCH=arm
           echo "NPM_ARCH=$NPM_ARCH" >>"$GITHUB_ENV"
-          [ "$VSCODE_ARCH" == "x64" ] && echo "DISPLAY=\":10\"" >>"$GITHUB_ENV"
+          ([ "$VSCODE_ARCH" == "x64" ] && echo "DISPLAY=\":10\"" >>"$GITHUB_ENV") || echo >/dev/null
 
       - name: Setup system services
         if: ${{ env.VSCODE_ARCH == 'x64' }}
