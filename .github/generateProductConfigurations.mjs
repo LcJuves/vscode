@@ -43,6 +43,8 @@ function generateProductJson() {
 	productJson["urlProtocol"] = "vscode";
 	productJson["serverApplicationName"] = `${productJson["applicationName"]}-server`;
 	productJson["serverDataFolderName"] = `${productJson["dataFolderName"]}-server`;
+	productJson["licenseUrl"] = 'https://github.com/LcJuves/vscode/blob/real-time-synchronization/LICENSE.txt';
+	productJson["serverLicenseUrl"] = productJson["licenseUrl"];
 	productJson["serverLicense"] = [
 		"*",
 		`* ${productJson["nameLong"]} Server`,
