@@ -22,8 +22,8 @@ env:
   CODE_ICO_URL: https://github.com/LcJuves/vscode/raw/94cba4eb314f52fd18b47b72459954fda65302d0/resources/win32/code.ico
   VSCODE_STEP_ON_IT: false
   CACHE_VERSION: 1744084097
-  PUBLISH_NAME: dev_pre_part4
-  PUBLISH_TAG_NAME: dev_pre_part4
+  PUBLISH_NAME: dev_pre_part5
+  PUBLISH_TAG_NAME: dev_pre_part5
   PRE_RELEASE: true
 
 defaults:
@@ -401,7 +401,7 @@ jobs:
           export OPENSSL_INCLUDE_DIR="$PWD/openssl/${OPENSSL_ARCH}-linux/include"
           cd cli || exit
           if [ -n "$SYSROOT_ARCH" ]; then
-            export VSCODE_SYSROOT_DIR=$(Build.SourcesDirectory)/.build/sysroots
+            export VSCODE_SYSROOT_DIR="$PWD/.build/sysroots"
             node -e '(async () => { const { getVSCodeSysroot } = require("../build/linux/debian/install-sysroot.js"); await getVSCodeSysroot(process.env["SYSROOT_ARCH"]); })()'
             if [ "$SYSROOT_ARCH" == "arm64" ]; then
               export CARGO_TARGET_AARCH64_UNKNOWN_LINUX_GNU_LINKER="$VSCODE_SYSROOT_DIR/aarch64-linux-gnu/bin/aarch64-linux-gnu-gcc"
@@ -722,13 +722,13 @@ jobs:
           BUILD=$NAME_SHORT-darwin-${VSCODE_ARCH}
           APP_NAME="${NAME_LONG}.app"
           echo "APP_NAME=$APP_NAME" >>"$GITHUB_ENV"
-          APP_ROOT="$(cd ../$BUILD && pwd)"
-          echo "APP_ROOT=$APP_ROOT" >>"$GITHUB_ENV"
           export OPENSSL_LIB_DIR="$PWD/openssl/${VSCODE_ARCH}-osx/lib"
           export OPENSSL_INCLUDE_DIR="$PWD/openssl/${VSCODE_ARCH}-osx/include"
           (cd cli && cargo build --release --target "$VSCODE_CLI_TARGET" --bin=code)
           mv cli/target/"$VSCODE_CLI_TARGET"/release/code ../$DEFAULT_BUILD/"$APP_NAME"/Contents/Resources/app/bin/"$CLI_APP_NAME"
           (cd .. && cp -r $DEFAULT_BUILD $BUILD)
+          APP_ROOT="$(cd ../$BUILD && pwd)"
+          echo "APP_ROOT=$APP_ROOT" >>"$GITHUB_ENV"
           XZ_TARBALL_NAME=$BUILD.tar.xz
           (cd ../$BUILD && tar -cJf $XZ_TARBALL_NAME "$APP_NAME")
           mv ../$BUILD/$XZ_TARBALL_NAME .
