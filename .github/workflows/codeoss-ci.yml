@@ -257,7 +257,7 @@ jobs:
           targets: ${{ matrix.vscode-cli-target }}
 
       - name: Download product configurations
-        uses: actions/download-artifact@v4.1.9
+        uses: actions/download-artifact@v4.2.1
         with:
           name: Product configurations
 
@@ -291,7 +291,7 @@ jobs:
           echo "DBUS_SESSION_BUS_ADDRESS=$DBUS_LAUNCH_RESULT" >>"$GITHUB_ENV"
 
       - name: Download compilation output
-        uses: actions/download-artifact@v4.1.9
+        uses: actions/download-artifact@v4.2.1
         with:
           name: Compilation
 
@@ -587,12 +587,12 @@ jobs:
           targets: ${{ env.VSCODE_CLI_TARGET }}
 
       - name: Download product configurations
-        uses: actions/download-artifact@v4.1.9
+        uses: actions/download-artifact@v4.2.1
         with:
           name: Product configurations
 
       - name: Download compilation output
-        uses: actions/download-artifact@v4.1.9
+        uses: actions/download-artifact@v4.2.1
         with:
           name: Compilation
 
@@ -744,7 +744,7 @@ jobs:
           node-version: ${{ env.NODE_VERSION }}
 
       - name: Download product configurations
-        uses: actions/download-artifact@v4.1.9
+        uses: actions/download-artifact@v4.2.1
         with:
           name: Product configurations
 
@@ -854,12 +854,12 @@ jobs:
           targets: ${{ env.VSCODE_CLI_TARGET }}
 
       - name: Download product configurations
-        uses: actions/download-artifact@v4.1.9
+        uses: actions/download-artifact@v4.2.1
         with:
           name: Product configurations
 
       - name: Download compilation output
-        uses: actions/download-artifact@v4.1.9
+        uses: actions/download-artifact@v4.2.1
         with:
           name: Compilation
 
@@ -1021,12 +1021,12 @@ jobs:
           node-version: ${{ env.NODE_VERSION }}
 
       - name: Download product configurations
-        uses: actions/download-artifact@v4.1.9
+        uses: actions/download-artifact@v4.2.1
         with:
           name: Product configurations
 
       - name: Download compilation output
-        uses: actions/download-artifact@v4.1.9
+        uses: actions/download-artifact@v4.2.1
         with:
           name: Compilation
 
