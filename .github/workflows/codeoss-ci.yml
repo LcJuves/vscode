@@ -21,9 +21,9 @@ env:
   CARGO_TERM_COLOR: always
   CODE_ICO_URL: https://github.com/LcJuves/vscode/raw/94cba4eb314f52fd18b47b72459954fda65302d0/resources/win32/code.ico
   VSCODE_STEP_ON_IT: false
-  CACHE_VERSION: 1744010508
-  PUBLISH_NAME: dev_pre_part2
-  PUBLISH_TAG_NAME: dev_pre_part2
+  CACHE_VERSION: 1744084097
+  PUBLISH_NAME: dev_pre_part3
+  PUBLISH_TAG_NAME: dev_pre_part3
   PRE_RELEASE: true
 
 defaults:
@@ -408,29 +408,42 @@ jobs:
           echo "GZ_TARBALL_NAME=$GZ_TARBALL_NAME" >>"$GITHUB_ENV"
           echo "::endgroup::"
 
+          echo "::group::Prepare rpm package"
+          TRIPLE=""
+          if [ "$VSCODE_ARCH" == "x64" ]; then
+            TRIPLE="x86_64-linux-gnu"
+          elif [ "$VSCODE_ARCH" == "arm64" ]; then
+            TRIPLE="aarch64-linux-gnu"
+          elif [ "$VSCODE_ARCH" == "armhf" ]; then
+            TRIPLE="arm-rpi-linux-gnueabihf"
+          fi
+          export VSCODE_SYSROOT_DIR="$PWD/.build/sysroots"
+          export STRIP="$VSCODE_SYSROOT_DIR/$TRIPLE/$TRIPLE/bin/strip"
+          npm run gulp vscode-linux-${VSCODE_ARCH}-prepare-rpm
+          echo "::endgroup::"
+
           echo "::group::Build rpm package"
           npm run gulp vscode-linux-${VSCODE_ARCH}-build-rpm
-          case $VSCODE_ARCH in
-          x64) RPM_ARCH="x86_64" ;;
-          armhf) RPM_ARCH="armv7hl" ;;
-          arm64) RPM_ARCH="aarch64" ;;
-          *) RPM_ARCH="$VSCODE_ARCH" ;;
-          esac
-          RPM_OUT_DIR=.build/linux/rpm/$RPM_ARCH
-          RPM_FILENAME="$(cd $RPM_OUT_DIR && (ls ./*.rpm) | awk -F "./" 'NR==1{print $2}')"
-          mv "$RPM_OUT_DIR/$RPM_FILENAME" .
+          RPM_PATH="$(ls .build/linux/rpm/*/*.rpm)"
+          RPM_FILENAME="${RPM_PATH##*/}"
+          mv "$RPM_PATH" .
           echo "RPM_FILENAME=$RPM_FILENAME" >>"$GITHUB_ENV"
+          echo "::endgroup::"
+
+          echo "::group::Prepare deb package"
+          npm run gulp vscode-linux-${VSCODE_ARCH}-prepare-deb
           echo "::endgroup::"
 
           echo "::group::Build deb package"
           npm run gulp vscode-linux-${VSCODE_ARCH}-build-deb
-          case $VSCODE_ARCH in
-          x64) DEB_ARCH="amd64" ;;
-          *) DEB_ARCH="$VSCODE_ARCH" ;;
-          esac
-          DEB_OUT_DIR=.build/linux/deb/$DEB_ARCH/deb
-          DEB_FILENAME="$(cd $DEB_OUT_DIR && (ls ./*.deb) | awk -F "./" 'NR==1{print $2}')"
-          mv "$DEB_OUT_DIR/$DEB_FILENAME" .
+          DEB_OUT=$(file $(ls .build/linux/deb/*/deb/*.deb))
+          if [[ "$DEB_OUT" != *"data compression xz"* ]]; then
+            echo "Error: unknown compression. $DEB_OUT"
+            exit 1
+          fi
+          DEB_PATH="$(ls .build/linux/deb/*/deb/*.deb)"
+          DEB_FILENAME="${DEB_PATH##*/}"
+          mv "$DEB_PATH" .
           echo "DEB_FILENAME=$DEB_FILENAME" >>"$GITHUB_ENV"
           echo "::endgroup::"
 
@@ -468,12 +481,11 @@ jobs:
           SNAP_ROOT="$PWD/.build/linux/snap/${VSCODE_ARCH}"
           SNAP_PATH="$SNAP_ROOT/$SNAP_FILENAME"
           case $VSCODE_ARCH in
-          x64) SNAP_ARCH="amd64" ;;
-          *) SNAP_ARCH="$VSCODE_ARCH" ;;
+          x64) SNAP_TARGET_ARGS="" ;;
+          *) SNAP_TARGET_ARGS="--target-arch $VSCODE_ARCH" ;;
           esac
-          (cd "$SNAP_ROOT/$APPLICATION_NAME-$VSCODE_ARCH" &&
-          	sudo --preserve-env snapcraft prime --target-arch "$SNAP_ARCH" &&
-          	snap pack prime --compression=lzo --filename="$SNAP_PATH")
+          (cd "$SNAP_ROOT/$APPLICATION_NAME-*" &&
+          	sudo --preserve-env snapcraft prime --target-arch "$SNAP_TARGET_ARGS" --output "$SNAP_PATH")
           mv "$SNAP_PATH" .
           EOF
           exec docker run -v "$PWD:/workspace" \
