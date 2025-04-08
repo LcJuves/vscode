@@ -17,13 +17,13 @@ env:
   GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
   NODE_VERSION: 20
   PYTHON_VERSION: "3.x"
-  RUST_VERSION: 1.85.1
+  RUST_VERSION: 1.86
   CARGO_TERM_COLOR: always
   CODE_ICO_URL: https://github.com/LcJuves/vscode/raw/94cba4eb314f52fd18b47b72459954fda65302d0/resources/win32/code.ico
   VSCODE_STEP_ON_IT: false
   CACHE_VERSION: 1744084097
-  PUBLISH_NAME: dev_pre_part3
-  PUBLISH_TAG_NAME: dev_pre_part3
+  PUBLISH_NAME: dev_pre_part4
+  PUBLISH_TAG_NAME: dev_pre_part4
   PRE_RELEASE: true
 
 defaults:
@@ -223,9 +223,6 @@ jobs:
   build-for-linux:
     name: Build for Linux
     runs-on: ubuntu-22.04
-    # container:
-    #   image: vscodehub.azurecr.io/vscode-linux-build-agent:${{ env.BUILD_AGENT_IMAGE_TAG }}
-    #   options: --user 0:0 --cap-add SYS_ADMIN
     needs: [generate-product-configurations, compile]
     strategy:
       matrix:
@@ -266,10 +263,20 @@ jobs:
           NPM_ARCH=$VSCODE_ARCH
           [ "${NPM_ARCH}" == "armhf" ] && NPM_ARCH=arm
           echo "NPM_ARCH=$NPM_ARCH" >>"$GITHUB_ENV"
-          ([ "$VSCODE_ARCH" == "x64" ] && echo "DISPLAY=\":10\"" >>"$GITHUB_ENV") || echo >/dev/null
+          [ "$VSCODE_ARCH" == "x64" ] && echo "DISPLAY=:10" >>"$GITHUB_ENV"
+          SYSROOT_ARCH=$VSCODE_ARCH
+          if [ "$SYSROOT_ARCH" == "x64" ]; then
+            SYSROOT_ARCH="amd64"
+          fi
+          echo "SYSROOT_ARCH=$SYSROOT_ARCH" >>"$GITHUB_ENV"
+          OPENSSL_ARCH="${VSCODE_ARCH}"
+          OPENSSL_ARCH=$VSCODE_ARCH
+          if [ "$OPENSSL_ARCH" == "armhf" ]; then
+            OPENSSL_ARCH="arm"
+          fi
+          (echo "OPENSSL_ARCH=$OPENSSL_ARCH" >>"$GITHUB_ENV") || echo >/dev/null
 
       - name: Setup system services
-        if: ${{ env.VSCODE_ARCH == 'x64' }}
         run: |
           # Start X server
           ./build/azure-pipelines/linux/apt-retry.sh sudo apt-get update
@@ -328,10 +335,6 @@ jobs:
 
       - name: Download vscode sysroots
         run: |
-          SYSROOT_ARCH=$VSCODE_ARCH
-          if [ "$SYSROOT_ARCH" == "x64" ]; then
-            SYSROOT_ARCH="amd64"
-          fi
           export VSCODE_SYSROOT_DIR=$PWD/.build/sysroots
           SYSROOT_ARCH="$SYSROOT_ARCH" node -e '(async () => { const { getVSCodeSysroot } = require("./build/linux/debian/install-sysroot.js"); await getVSCodeSysroot(process.env["SYSROOT_ARCH"]); })()'
 
@@ -389,11 +392,64 @@ jobs:
       - name: Build client artifacts
         run: |
           BUILD_VERSION="$(date +%s)"
-
+          DEFAULT_BUILD=VSCode-linux-${VSCODE_ARCH}
+          BUILD=$NAME_SHORT-linux-${VSCODE_ARCH}
           echo "::group::Build binary package"
           npm run gulp vscode-linux-${VSCODE_ARCH}-min-ci
-          BUILD=$NAME_SHORT-linux-${VSCODE_ARCH}
-          (cd .. && cp -r VSCode-linux-${VSCODE_ARCH} $BUILD)
+          echo "::group::Compile CLI ($VSCODE_CLI_TARGET)"
+          export OPENSSL_LIB_DIR="$PWD/openssl/${OPENSSL_ARCH}-linux/lib"
+          export OPENSSL_INCLUDE_DIR="$PWD/openssl/${OPENSSL_ARCH}-linux/include"
+          cd cli || exit
+          if [ -n "$SYSROOT_ARCH" ]; then
+            export VSCODE_SYSROOT_DIR=$(Build.SourcesDirectory)/.build/sysroots
+            node -e '(async () => { const { getVSCodeSysroot } = require("../build/linux/debian/install-sysroot.js"); await getVSCodeSysroot(process.env["SYSROOT_ARCH"]); })()'
+            if [ "$SYSROOT_ARCH" == "arm64" ]; then
+              export CARGO_TARGET_AARCH64_UNKNOWN_LINUX_GNU_LINKER="$VSCODE_SYSROOT_DIR/aarch64-linux-gnu/bin/aarch64-linux-gnu-gcc"
+              export CARGO_TARGET_AARCH64_UNKNOWN_LINUX_GNU_RUSTFLAGS="-C link-arg=--sysroot=$VSCODE_SYSROOT_DIR/aarch64-linux-gnu/aarch64-linux-gnu/sysroot"
+              export CC_aarch64_unknown_linux_gnu="$VSCODE_SYSROOT_DIR/aarch64-linux-gnu/bin/aarch64-linux-gnu-gcc --sysroot=$VSCODE_SYSROOT_DIR/aarch64-linux-gnu/aarch64-linux-gnu/sysroot"
+              export PKG_CONFIG_LIBDIR_aarch64_unknown_linux_gnu="$VSCODE_SYSROOT_DIR/aarch64-linux-gnu/aarch64-linux-gnu/sysroot/usr/lib/aarch64-linux-gnu/pkgconfig:$VSCODE_SYSROOT_DIR/aarch64-linux-gnu/aarch64-linux-gnu/sysroot/usr/share/pkgconfig"
+              export PKG_CONFIG_SYSROOT_DIR_aarch64_unknown_linux_gnu="$VSCODE_SYSROOT_DIR/aarch64-linux-gnu/aarch64-linux-gnu/sysroot"
+              export OBJDUMP="$VSCODE_SYSROOT_DIR/aarch64-linux-gnu/aarch64-linux-gnu/bin/objdump"
+            elif [ "$SYSROOT_ARCH" == "amd64" ]; then
+              export CARGO_TARGET_X86_64_UNKNOWN_LINUX_GNU_LINKER="$VSCODE_SYSROOT_DIR/x86_64-linux-gnu/bin/x86_64-linux-gnu-gcc"
+              export CARGO_TARGET_X86_64_UNKNOWN_LINUX_GNU_RUSTFLAGS="-C link-arg=--sysroot=$VSCODE_SYSROOT_DIR/x86_64-linux-gnu/x86_64-linux-gnu/sysroot -C link-arg=-L$VSCODE_SYSROOT_DIR/x86_64-linux-gnu/x86_64-linux-gnu/sysroot/usr/lib/x86_64-linux-gnu"
+              export CC_x86_64_unknown_linux_gnu="$VSCODE_SYSROOT_DIR/x86_64-linux-gnu/bin/x86_64-linux-gnu-gcc --sysroot=$VSCODE_SYSROOT_DIR/x86_64-linux-gnu/x86_64-linux-gnu/sysroot"
+              export PKG_CONFIG_LIBDIR_x86_64_unknown_linux_gnu="$VSCODE_SYSROOT_DIR/x86_64-linux-gnu/x86_64-linux-gnu/sysroot/usr/lib/x86_64-linux-gnu/pkgconfig:$VSCODE_SYSROOT_DIR/x86_64-linux-gnu/x86_64-linux-gnu/sysroot/usr/share/pkgconfig"
+              export PKG_CONFIG_SYSROOT_DIR_x86_64_unknown_linux_gnu="$VSCODE_SYSROOT_DIR/x86_64-linux-gnu/x86_64-linux-gnu/sysroot"
+              export OBJDUMP="$VSCODE_SYSROOT_DIR/x86_64-linux-gnu/x86_64-linux-gnu/bin/objdump"
+            elif [ "$SYSROOT_ARCH" == "armhf" ]; then
+              export CARGO_TARGET_ARMV7_UNKNOWN_LINUX_GNUEABIHF_LINKER="$VSCODE_SYSROOT_DIR/arm-rpi-linux-gnueabihf/bin/arm-rpi-linux-gnueabihf-gcc"
+              export CARGO_TARGET_ARMV7_UNKNOWN_LINUX_GNUEABIHF_RUSTFLAGS="-C link-arg=--sysroot=$VSCODE_SYSROOT_DIR/arm-rpi-linux-gnueabihf/arm-rpi-linux-gnueabihf/sysroot"
+              export CC_armv7_unknown_linux_gnueabihf="$VSCODE_SYSROOT_DIR/arm-rpi-linux-gnueabihf/bin/arm-rpi-linux-gnueabihf-gcc --sysroot=$VSCODE_SYSROOT_DIR/arm-rpi-linux-gnueabihf/arm-rpi-linux-gnueabihf/sysroot"
+              export PKG_CONFIG_LIBDIR_armv7_unknown_linux_gnueabihf="$VSCODE_SYSROOT_DIR/arm-rpi-linux-gnueabihf/arm-rpi-linux-gnueabihf/sysroot/usr/lib/arm-rpi-linux-gnueabihf/pkgconfig:$VSCODE_SYSROOT_DIR/arm-rpi-linux-gnueabihf/arm-rpi-linux-gnueabihf/sysroot/usr/share/pkgconfig"
+              export PKG_CONFIG_SYSROOT_DIR_armv7_unknown_linux_gnueabihf="$VSCODE_SYSROOT_DIR/arm-rpi-linux-gnueabihf/arm-rpi-linux-gnueabihf/sysroot"
+              export OBJDUMP="$VSCODE_SYSROOT_DIR/arm-rpi-linux-gnueabihf/arm-rpi-linux-gnueabihf/bin/objdump"
+            fi
+          fi
+
+          cargo build --release --target "$VSCODE_CLI_TARGET" --bin=code
+
+          # verify glibc requirement
+          if [ -n "$SYSROOT_ARCH" ]; then
+            glibc_version="2.28"
+            while IFS= read -r line; do
+              if [[ $line == *"GLIBC_"* ]]; then
+                version=$(echo "$line" | awk '{print $5}' | tr -d '()')
+                version=${version#*_}
+                if [[ $(printf "%s\n%s" "$version" "$glibc_version" | sort -V | tail -n1) == "$version" ]]; then
+                  glibc_version=$version
+                fi
+              fi
+            done < <("$OBJDUMP" -T "$PWD/target/$VSCODE_CLI_TARGET/release/code")
+            if [[ "$glibc_version" != "2.28" ]]; then
+              echo "Error: binary has dependency on GLIBC > 2.28, found $glibc_version"
+              exit 1
+            fi
+          fi
+          cd "$GITHUB_ACTION_PATH" || exit
+          mv cli/target/"$VSCODE_CLI_TARGET"/release/code ../$DEFAULT_BUILD/bin/"$CLI_APP_NAME"
+          echo "::endgroup::"
+          (cd .. && cp -r $DEFAULT_BUILD $BUILD)
           [ -z "${VSCODE_QUALITY}" ] &&
           	XZ_TARBALL_NAME="${APPLICATION_NAME}-${VSCODE_ARCH}-$BUILD_VERSION.tar.xz" ||
           	XZ_TARBALL_NAME="${APPLICATION_NAME}-${VSCODE_QUALITY}-${VSCODE_ARCH}-$BUILD_VERSION.tar.xz"
@@ -662,16 +718,17 @@ jobs:
       - name: Build client artifacts
         run: |
           npm run gulp vscode-darwin-${VSCODE_ARCH}-min-ci
+          DEFAULT_BUILD=VSCode-darwin-${VSCODE_ARCH}
           BUILD=$NAME_SHORT-darwin-${VSCODE_ARCH}
-          (cd .. && mv VSCode-darwin-${VSCODE_ARCH} $BUILD)
-          export OPENSSL_LIB_DIR="$PWD/openssl/${VSCODE_ARCH}-osx/lib"
-          export OPENSSL_INCLUDE_DIR="$PWD/openssl/${VSCODE_ARCH}-osx/include"
-          (cd cli && cargo build --release --target "$VSCODE_CLI_TARGET" --bin=code)
           APP_NAME="${NAME_LONG}.app"
           echo "APP_NAME=$APP_NAME" >>"$GITHUB_ENV"
           APP_ROOT="$(cd ../$BUILD && pwd)"
           echo "APP_ROOT=$APP_ROOT" >>"$GITHUB_ENV"
-          mv cli/target/"$VSCODE_CLI_TARGET"/release/code ../$BUILD/"$APP_NAME"/Contents/Resources/app/bin/"$CLI_APP_NAME"
+          export OPENSSL_LIB_DIR="$PWD/openssl/${VSCODE_ARCH}-osx/lib"
+          export OPENSSL_INCLUDE_DIR="$PWD/openssl/${VSCODE_ARCH}-osx/include"
+          (cd cli && cargo build --release --target "$VSCODE_CLI_TARGET" --bin=code)
+          mv cli/target/"$VSCODE_CLI_TARGET"/release/code ../$DEFAULT_BUILD/"$APP_NAME"/Contents/Resources/app/bin/"$CLI_APP_NAME"
+          (cd .. && cp -r $DEFAULT_BUILD $BUILD)
           XZ_TARBALL_NAME=$BUILD.tar.xz
           (cd ../$BUILD && tar -cJf $XZ_TARBALL_NAME "$APP_NAME")
           mv ../$BUILD/$XZ_TARBALL_NAME .
