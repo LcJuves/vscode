@@ -23,7 +23,7 @@ env:
   VSCODE_STEP_ON_IT: false
   CACHE_VERSION: 1744191471
   PUBLISH_NAME: dev_pre_part10
-  PUBLISH_TAG_NAME: dev_pre_part10
+  PUBLISH_TAG_NAME: dev_pre_part11
   PRE_RELEASE: true
 
 defaults:
@@ -169,9 +169,8 @@ jobs:
       - name: Compile & Hygiene
         timeout-minutes: 180
         run: |
-          export VSCODE_QUALITY=$(node -p "require('./product.json')['quality']||'oss'")
           npm exec -- npm-run-all -lp \
-              core-ci extensions-ci hygiene eslint \
+              core-ci-pr extensions-ci hygiene eslint \
               valid-layers-check vscode-dts-compile-check tsec-compile-check
 
       - name: Compute openssl prebuilt cache key
