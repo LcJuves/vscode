@@ -10,25 +10,35 @@ export const file = 'file';
 export const untitled = 'untitled';
 export const git = 'git';
 export const github = 'github';
+export const azurerepos = 'azurerepos';
 
 /** Live share scheme */
 export const vsls = 'vsls';
 export const walkThroughSnippet = 'walkThroughSnippet';
 export const vscodeNotebookCell = 'vscode-notebook-cell';
-export const memFs = 'memfs';
-export const vscodeVfs = 'vscode-vfs';
 export const officeScript = 'office-script';
 
+/** Used for code blocks in chat by vs code core */
+export const chatCodeBlock = 'vscode-chat-code-block';
+
 export function getSemanticSupportedSchemes() {
-	if (isWeb() && vscode.workspace.workspaceFolders) {
-		return vscode.workspace.workspaceFolders.map(folder => folder.uri.scheme);
+	const alwaysSupportedSchemes = [
+		untitled,
+		walkThroughSnippet,
+		vscodeNotebookCell,
+		chatCodeBlock,
+	];
+
+	if (isWeb()) {
+		return [
+			...(vscode.workspace.workspaceFolders ?? []).map(folder => folder.uri.scheme),
+			...alwaysSupportedSchemes,
+		];
 	}
 
 	return [
 		file,
-		untitled,
-		walkThroughSnippet,
-		vscodeNotebookCell,
+		...alwaysSupportedSchemes,
 	];
 }
 
@@ -39,4 +49,10 @@ export const disabledSchemes = new Set([
 	git,
 	vsls,
 	github,
+	azurerepos,
 ]);
+
+export function isOfScheme(uri: vscode.Uri, ...schemes: string[]): boolean {
+	const normalizedUriScheme = uri.scheme.toLowerCase();
+	return schemes.some(scheme => normalizedUriScheme === scheme);
+}
