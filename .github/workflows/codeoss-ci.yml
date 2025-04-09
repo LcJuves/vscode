@@ -335,7 +335,7 @@ jobs:
 
       - name: Download vscode sysroots
         run: |
-          export VSCODE_SYSROOT_DIR=$PWD/.build/sysroots
+          export VSCODE_SYSROOT_DIR="$GITHUB_ACTION_PATH/.build/sysroots"
           SYSROOT_ARCH="$SYSROOT_ARCH" node -e '(async () => { const { getVSCodeSysroot } = require("./build/linux/debian/install-sysroot.js"); await getVSCodeSysroot(process.env["SYSROOT_ARCH"]); })()'
 
       - name: Override gnu target for arm64 and arm
@@ -401,7 +401,7 @@ jobs:
           export OPENSSL_INCLUDE_DIR="$PWD/openssl/${OPENSSL_ARCH}-linux/include"
           cd cli || exit
           if [ -n "$SYSROOT_ARCH" ]; then
-            export VSCODE_SYSROOT_DIR="$PWD/.build/sysroots"
+            export VSCODE_SYSROOT_DIR="$GITHUB_ACTION_PATH/.build/sysroots"
             node -e '(async () => { const { getVSCodeSysroot } = require("../build/linux/debian/install-sysroot.js"); await getVSCodeSysroot(process.env["SYSROOT_ARCH"]); })()'
             if [ "$SYSROOT_ARCH" == "arm64" ]; then
               export CARGO_TARGET_AARCH64_UNKNOWN_LINUX_GNU_LINKER="$VSCODE_SYSROOT_DIR/aarch64-linux-gnu/bin/aarch64-linux-gnu-gcc"
@@ -473,7 +473,7 @@ jobs:
           elif [ "$VSCODE_ARCH" == "armhf" ]; then
             TRIPLE="arm-rpi-linux-gnueabihf"
           fi
-          export VSCODE_SYSROOT_DIR="$PWD/.build/sysroots"
+          export VSCODE_SYSROOT_DIR="$GITHUB_ACTION_PATH/.build/sysroots"
           export STRIP="$VSCODE_SYSROOT_DIR/$TRIPLE/$TRIPLE/bin/strip"
           npm run gulp vscode-linux-${VSCODE_ARCH}-prepare-rpm
           echo "::endgroup::"
