@@ -22,8 +22,8 @@ env:
   CODE_ICO_URL: https://github.com/LcJuves/vscode/raw/94cba4eb314f52fd18b47b72459954fda65302d0/resources/win32/code.ico
   VSCODE_STEP_ON_IT: false
   CACHE_VERSION: 1744084097
-  PUBLISH_NAME: dev_pre_part6
-  PUBLISH_TAG_NAME: dev_pre_part6
+  PUBLISH_NAME: dev_pre_part7
+  PUBLISH_TAG_NAME: dev_pre_part7
   PRE_RELEASE: true
 
 defaults:
@@ -464,28 +464,6 @@ jobs:
           echo "GZ_TARBALL_NAME=$GZ_TARBALL_NAME" >>"$GITHUB_ENV"
           echo "::endgroup::"
 
-          echo "::group::Prepare rpm package"
-          TRIPLE=""
-          if [ "$VSCODE_ARCH" == "x64" ]; then
-            TRIPLE="x86_64-linux-gnu"
-          elif [ "$VSCODE_ARCH" == "arm64" ]; then
-            TRIPLE="aarch64-linux-gnu"
-          elif [ "$VSCODE_ARCH" == "armhf" ]; then
-            TRIPLE="arm-rpi-linux-gnueabihf"
-          fi
-          export VSCODE_SYSROOT_DIR="$GITHUB_WORKSPACE/.build/sysroots"
-          export STRIP="$VSCODE_SYSROOT_DIR/$TRIPLE/$TRIPLE/bin/strip"
-          npm run gulp vscode-linux-${VSCODE_ARCH}-prepare-rpm
-          echo "::endgroup::"
-
-          echo "::group::Build rpm package"
-          npm run gulp vscode-linux-${VSCODE_ARCH}-build-rpm
-          RPM_PATH="$(ls .build/linux/rpm/*/*.rpm)"
-          RPM_FILENAME="${RPM_PATH##*/}"
-          mv "$RPM_PATH" .
-          echo "RPM_FILENAME=$RPM_FILENAME" >>"$GITHUB_ENV"
-          echo "::endgroup::"
-
           echo "::group::Prepare deb package"
           npm run gulp vscode-linux-${VSCODE_ARCH}-prepare-deb
           echo "::endgroup::"
@@ -518,6 +496,28 @@ jobs:
           	echo "APPIMAGE_FILENAME=$APPIMAGE_FILENAME" >>"$GITHUB_ENV"
           	echo "::endgroup::"
           fi
+
+          echo "::group::Prepare rpm package"
+          TRIPLE=""
+          if [ "$VSCODE_ARCH" == "x64" ]; then
+            TRIPLE="x86_64-linux-gnu"
+          elif [ "$VSCODE_ARCH" == "arm64" ]; then
+            TRIPLE="aarch64-linux-gnu"
+          elif [ "$VSCODE_ARCH" == "armhf" ]; then
+            TRIPLE="arm-rpi-linux-gnueabihf"
+          fi
+          export VSCODE_SYSROOT_DIR="$GITHUB_WORKSPACE/.build/sysroots"
+          export STRIP="$VSCODE_SYSROOT_DIR/$TRIPLE/$TRIPLE/bin/strip"
+          npm run gulp vscode-linux-${VSCODE_ARCH}-prepare-rpm
+          echo "::endgroup::"
+
+          echo "::group::Build rpm package"
+          npm run gulp vscode-linux-${VSCODE_ARCH}-build-rpm
+          RPM_PATH="$(ls .build/linux/rpm/*/*.rpm)"
+          RPM_FILENAME="${RPM_PATH##*/}"
+          mv "$RPM_PATH" .
+          echo "RPM_FILENAME=$RPM_FILENAME" >>"$GITHUB_ENV"
+          echo "::endgroup::"
 
           echo "::group::Build snap package"
           set -x
