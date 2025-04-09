@@ -21,9 +21,9 @@ env:
   CARGO_TERM_COLOR: always
   CODE_ICO_URL: https://github.com/LcJuves/vscode/raw/94cba4eb314f52fd18b47b72459954fda65302d0/resources/win32/code.ico
   VSCODE_STEP_ON_IT: false
-  CACHE_VERSION: 1744084097
-  PUBLISH_NAME: dev_pre_part7
-  PUBLISH_TAG_NAME: dev_pre_part7
+  CACHE_VERSION: 1744180242
+  PUBLISH_NAME: dev_pre_part8
+  PUBLISH_TAG_NAME: dev_pre_part8
   PRE_RELEASE: true
 
 defaults:
@@ -235,7 +235,6 @@ jobs:
             vscode-cli-target: armv7-unknown-linux-gnueabihf
     env:
       VSCODE_ARCH: ${{ matrix.arch }}
-      BUILD_AGENT_IMAGE_TAG: centos7-devtoolset8-${{ matrix.arch }}
       APPLICATION_NAME: ${{ needs.generate-product-configurations.outputs.application-name }}
       CLI_APP_NAME: ${{ needs.generate-product-configurations.outputs.tunnel-application-name }}
       NAME_SHORT: ${{ needs.generate-product-configurations.outputs.name-short }}
@@ -258,6 +257,14 @@ jobs:
         with:
           name: Product configurations
 
+      - name: Download compilation output
+        uses: actions/download-artifact@v4.2.1
+        with:
+          name: Compilation
+
+      - name: Extract compilation output
+        run: tar -xJf compilation.tar.xz
+
       - name: Initialize job variables
         run: |
           NPM_ARCH=$VSCODE_ARCH
@@ -275,6 +282,27 @@ jobs:
             OPENSSL_ARCH="arm"
           fi
           (echo "OPENSSL_ARCH=$OPENSSL_ARCH" >>"$GITHUB_ENV") || echo >/dev/null
+
+      - name: Compute node modules cache key
+        id: compute-node-modules-cache-key
+        run: echo "key=$(node build/azure-pipelines/common/computeNodeModulesCacheKey.js linux $VSCODE_ARCH)" >>"$GITHUB_OUTPUT"
+
+      - name: Cache node modules
+        id: cache-node-modules
+        uses: actions/cache@v3
+        with:
+          path: ".build/node_modules_cache"
+          key: "NodeModules${{ steps.compute-node-modules-cache-key.outputs.key }}${{ env.CACHE_VERSION }}"
+
+      - name: Extract node modules archive
+        if: ${{ steps.cache-node-modules.outputs.cache-hit == 'true' }}
+        run: tar -xJf .build/node_modules_cache/cache.tar.xz
+
+      - name: Install build tools
+        if: ${{ steps.cache-node-modules.outputs.cache-hit != 'true' }}
+        run: |
+          sudo apt update -y
+          sudo apt install -y build-essential pkg-config libx11-dev libx11-xcb-dev libxkbfile-dev libnotify-bin libkrb5-dev
 
       - name: Setup system services
         run: |
@@ -296,29 +324,6 @@ jobs:
           sudo mkdir -p /var/run/dbus
           DBUS_LAUNCH_RESULT=$(sudo dbus-daemon --config-file=/usr/share/dbus-1/system.conf --print-address)
           echo "DBUS_SESSION_BUS_ADDRESS=$DBUS_LAUNCH_RESULT" >>"$GITHUB_ENV"
-
-      - name: Download compilation output
-        uses: actions/download-artifact@v4.2.1
-        with:
-          name: Compilation
-
-      - name: Extract compilation output
-        run: tar -xJf compilation.tar.xz
-
-      - name: Compute node modules cache key
-        id: compute-node-modules-cache-key
-        run: echo "key=$(node build/azure-pipelines/common/computeNodeModulesCacheKey.js linux $VSCODE_ARCH)" >>"$GITHUB_OUTPUT"
-
-      - name: Cache node modules
-        id: cache-node-modules
-        uses: actions/cache@v3
-        with:
-          path: ".build/node_modules_cache"
-          key: "NodeModules${{ steps.compute-node-modules-cache-key.outputs.key }}${{ env.CACHE_VERSION }}"
-
-      - name: Extract node modules archive
-        if: ${{ steps.cache-node-modules.outputs.cache-hit == 'true' }}
-        run: tar -xJf .build/node_modules_cache/cache.tar.xz
 
       - name: Install build dependencies
         if: ${{ steps.cache-node-modules.outputs.cache-hit != 'true' }}
