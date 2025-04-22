@@ -21,9 +21,9 @@ env:
   CARGO_TERM_COLOR: always
   CODE_ICO_URL: https://github.com/LcJuves/vscode/raw/94cba4eb314f52fd18b47b72459954fda65302d0/resources/win32/code.ico
   VSCODE_STEP_ON_IT: false
-  CACHE_VERSION: 1744940767
-  PUBLISH_NAME: dev_pre_part12
-  PUBLISH_TAG_NAME: dev_pre_part12
+  CACHE_VERSION: 1745340288
+  PUBLISH_NAME: dev_pre_part13
+  PUBLISH_TAG_NAME: dev_pre_part13
   PRE_RELEASE: true
 
 defaults:
@@ -235,7 +235,7 @@ jobs:
       - uses: actions/setup-node@v3
         with:
           node-version: ${{ env.NODE_VERSION }}
-      - uses: MeyouRepo/actions-marketplace-validations--ATiltedTree_setup-rust@v1.0.5
+      - uses: MeyouRepo/actions-marketplace-validations--ATiltedTree_setup-rust@v1.0.6
         with:
           rust-version: ${{ env.RUST_VERSION }}
           targets: ${{ matrix.vscode-cli-target }}
@@ -636,7 +636,7 @@ jobs:
       - uses: actions/setup-node@v3
         with:
           node-version: ${{ env.NODE_VERSION }}
-      - uses: MeyouRepo/actions-marketplace-validations--ATiltedTree_setup-rust@v1.0.5
+      - uses: MeyouRepo/actions-marketplace-validations--ATiltedTree_setup-rust@v1.0.6
         with:
           rust-version: ${{ env.RUST_VERSION }}
           targets: ${{ env.VSCODE_CLI_TARGET }}
@@ -904,7 +904,7 @@ jobs:
       - uses: actions/setup-python@v4
         with:
           python-version: ${{ env.PYTHON_VERSION }}
-      - uses: MeyouRepo/actions-marketplace-validations--ATiltedTree_setup-rust@v1.0.5
+      - uses: MeyouRepo/actions-marketplace-validations--ATiltedTree_setup-rust@v1.0.6
         with:
           rust-version: ${{ env.RUST_VERSION }}
           targets: ${{ env.VSCODE_CLI_TARGET }}
