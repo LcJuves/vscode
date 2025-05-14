@@ -1,5 +1,7 @@
 MIT License
 
+Copyright (c) 2015 - present The Code OSS Project Contributors
+Copyright (c) 2021 - present Liangcheng Juves
 Copyright (c) 2015 - present Microsoft Corporation
 
 Permission is hereby granted, free of charge, to any person obtaining a copy

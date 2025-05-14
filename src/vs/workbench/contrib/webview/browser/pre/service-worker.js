@@ -4,7 +4,6 @@
  *--------------------------------------------------------------------------------------------*/
 // @ts-check
 
-/// <reference no-default-lib="true"/>
 /// <reference lib="webworker" />
 
 const sw = /** @type {ServiceWorkerGlobalScope} */ (/** @type {any} */ (self));
@@ -19,18 +18,25 @@ const searchParams = new URL(location.toString()).searchParams;
 
 const remoteAuthority = searchParams.get('remoteAuthority');
 
+const ID = searchParams.get('id');
+
 /**
  * Origin used for resources
  */
 const resourceBaseAuthority = searchParams.get('vscode-resource-base-authority');
 
-const resolveTimeout = 30000;
+const resolveTimeout = 30_000;
+
+/**
+ * @template T
+ * @typedef {{ status: 'ok'; value: T } | { status: 'timeout' }} RequestStoreResult
+ */
 
 /**
  * @template T
  * @typedef {{
- *     resolve: (x: T) => void,
- *     promise: Promise<T>
+ *     resolve: (x: RequestStoreResult<T>) => void,
+ *     promise: Promise<RequestStoreResult<T>>
  * }} RequestStoreEntry
  */
 
@@ -47,28 +53,19 @@ class RequestStore {
 	}
 
 	/**
-	 * @param {number} requestId
-	 * @return {Promise<T> | undefined}
-	 */
-	get(requestId) {
-		const entry = this.map.get(requestId);
-		return entry && entry.promise;
-	}
-
-	/**
-	 * @returns {{ requestId: number, promise: Promise<T> }}
+	 * @returns {{ requestId: number, promise: Promise<RequestStoreResult<T>> }}
 	 */
 	create() {
 		const requestId = ++this.requestPool;
 
-		/** @type {undefined | ((x: T) => void)} */
+		/** @type {undefined | ((x: RequestStoreResult<T>) => void)} */
 		let resolve;
 
-		/** @type {Promise<T>} */
+		/** @type {Promise<RequestStoreResult<T>>} */
 		const promise = new Promise(r => resolve = r);
 
 		/** @type {RequestStoreEntry<T>} */
-		const entry = { resolve: /** @type {(x: T) => void} */ (resolve), promise };
+		const entry = { resolve: /** @type {(x: RequestStoreResult<T>) => void} */ (resolve), promise };
 
 		this.map.set(requestId, entry);
 
@@ -76,7 +73,9 @@ class RequestStore {
 			clearTimeout(timeout);
 			const existingEntry = this.map.get(requestId);
 			if (existingEntry === entry) {
-				return this.map.delete(requestId);
+				existingEntry.resolve({ status: 'timeout' });
+				this.map.delete(requestId);
+				return;
 			}
 		};
 		const timeout = setTimeout(dispose, resolveTimeout);
@@ -93,7 +92,7 @@ class RequestStore {
 		if (!entry) {
 			return false;
 		}
-		entry.resolve(result);
+		entry.resolve({ status: 'ok', value: result });
 		this.map.delete(requestId);
 		return true;
 	}
@@ -129,47 +128,48 @@ const notFound = () =>
 const methodNotAllowed = () =>
 	new Response('Method Not Allowed', { status: 405, });
 
+const requestTimeout = () =>
+	new Response('Request Timeout', { status: 408, });
+
 sw.addEventListener('message', async (event) => {
 	switch (event.data.channel) {
-		case 'version':
-			{
-				const source = /** @type {Client} */ (event.source);
-				sw.clients.get(source.id).then(client => {
-					if (client) {
-						client.postMessage({
-							channel: 'version',
-							version: VERSION
-						});
-					}
-				});
-				return;
-			}
-		case 'did-load-resource':
-			{
-				/** @type {ResourceResponse} */
-				const response = event.data.data;
-				if (!resourceRequestStore.resolve(response.id, response)) {
-					console.log('Could not resolve unknown resource', response.path);
+		case 'version': {
+			const source = /** @type {Client} */ (event.source);
+			sw.clients.get(source.id).then(client => {
+				if (client) {
+					client.postMessage({
+						channel: 'version',
+						version: VERSION
+					});
 				}
-				return;
+			});
+			return;
+		}
+		case 'did-load-resource': {
+			/** @type {ResourceResponse} */
+			const response = event.data.data;
+			if (!resourceRequestStore.resolve(response.id, response)) {
+				console.log('Could not resolve unknown resource', response.path);
 			}
-		case 'did-load-localhost':
-			{
-				const data = event.data.data;
-				if (!localhostRequestStore.resolve(data.id, data.location)) {
-					console.log('Could not resolve unknown localhost', data.origin);
-				}
-				return;
+			return;
+		}
+		case 'did-load-localhost': {
+			const data = event.data.data;
+			if (!localhostRequestStore.resolve(data.id, data.location)) {
+				console.log('Could not resolve unknown localhost', data.origin);
 			}
-		default:
+			return;
+		}
+		default: {
 			console.log('Unknown message');
 			return;
+		}
 	}
 });
 
 sw.addEventListener('fetch', (event) => {
 	const requestUrl = new URL(event.request.url);
-	if (requestUrl.protocol === 'https:' && requestUrl.hostname.endsWith('.' + resourceBaseAuthority)) {
+	if (typeof resourceBaseAuthority === 'string' && requestUrl.protocol === 'https:' && requestUrl.hostname.endsWith('.' + resourceBaseAuthority)) {
 		switch (event.request.method) {
 			case 'GET':
 			case 'HEAD': {
@@ -183,26 +183,30 @@ sw.addEventListener('fetch', (event) => {
 					query: requestUrl.search.replace(/^\?/, ''),
 				}));
 			}
-			default:
+			default: {
 				return event.respondWith(methodNotAllowed());
+			}
 		}
 	}
 
 	// If we're making a request against the remote authority, we want to go
-	// back through VS Code itself so that we are authenticated properly
-	if (requestUrl.host === remoteAuthority) {
+	// through VS Code itself so that we are authenticated properly.  If the
+	// service worker is hosted on the same origin we will have cookies and
+	// authentication will not be an issue.
+	if (requestUrl.origin !== sw.origin && requestUrl.host === remoteAuthority) {
 		switch (event.request.method) {
 			case 'GET':
-			case 'HEAD':
+			case 'HEAD': {
 				return event.respondWith(processResourceRequest(event, {
 					path: requestUrl.pathname,
 					scheme: requestUrl.protocol.slice(0, requestUrl.protocol.length - 1),
 					authority: requestUrl.host,
 					query: requestUrl.search.replace(/^\?/, ''),
 				}));
-
-			default:
+			}
+			default: {
 				return event.respondWith(methodNotAllowed());
+			}
 		}
 	}
 
@@ -231,12 +235,19 @@ sw.addEventListener('activate', (event) => {
  */
 async function processResourceRequest(event, requestUrlComponents) {
 	const client = await sw.clients.get(event.clientId);
+	let webviewId;
 	if (!client) {
-		console.error('Could not find inner client for request');
-		return notFound();
+		const workerClient = await getWorkerClientForId(event.clientId);
+		if (!workerClient) {
+			console.error('Could not find inner client for request');
+			return notFound();
+		} else {
+			webviewId = getWebviewIdForClient(workerClient);
+		}
+	} else {
+		webviewId = getWebviewIdForClient(client);
 	}
 
-	const webviewId = getWebviewIdForClient(client);
 	if (!webviewId) {
 		console.error('Could not resolve webview id');
 		return notFound();
@@ -245,10 +256,15 @@ async function processResourceRequest(event, requestUrlComponents) {
 	const shouldTryCaching = (event.request.method === 'GET');
 
 	/**
-	 * @param {ResourceResponse} entry
+	 * @param {RequestStoreResult<ResourceResponse>} result
 	 * @param {Response | undefined} cachedResponse
 	 */
-	const resolveResourceEntry = (entry, cachedResponse) => {
+	const resolveResourceEntry = (result, cachedResponse) => {
+		if (result.status === 'timeout') {
+			return requestTimeout();
+		}
+
+		const entry = result.value;
 		if (entry.status === 304) { // Not modified
 			if (cachedResponse) {
 				return cachedResponse.clone();
@@ -266,11 +282,48 @@ async function processResourceRequest(event, requestUrlComponents) {
 		}
 
 		/** @type {Record<string, string>} */
-		const headers = {
-			'Content-Type': entry.mime,
-			'Content-Length': entry.data.byteLength.toString(),
+		const commonHeaders = {
 			'Access-Control-Allow-Origin': '*',
 		};
+
+		const byteLength = entry.data.byteLength;
+
+		const range = event.request.headers.get('range');
+		if (range) {
+			// To support seeking for videos, we need to handle range requests
+			const bytes = range.match(/^bytes\=(\d+)\-(\d+)?$/g);
+			if (bytes) {
+				// TODO: Right now we are always reading the full file content. This is a bad idea
+				// for large video files :)
+
+				const start = Number(bytes[1]);
+				const end = Number(bytes[2]) || byteLength - 1;
+				return new Response(entry.data.slice(start, end + 1), {
+					status: 206,
+					headers: {
+						...commonHeaders,
+						'Content-range': `bytes 0-${end}/${byteLength}`,
+					}
+				});
+			} else {
+				// We don't understand the requested bytes
+				return new Response(null, {
+					status: 416,
+					headers: {
+						...commonHeaders,
+						'Content-range': `*/${byteLength}`
+					}
+				});
+			}
+		}
+
+		/** @type {Record<string, string>} */
+		const headers = {
+			...commonHeaders,
+			'Content-Type': entry.mime,
+			'Content-Length': byteLength.toString(),
+		};
+
 		if (entry.etag) {
 			headers['ETag'] = entry.etag;
 			headers['Cache-Control'] = 'no-cache';
@@ -278,6 +331,18 @@ async function processResourceRequest(event, requestUrlComponents) {
 		if (entry.mtime) {
 			headers['Last-Modified'] = new Date(entry.mtime).toUTCString();
 		}
+
+		// support COI requests, see network.ts#COI.getHeadersFromQuery(...)
+		const coiRequest = new URL(event.request.url).searchParams.get('vscode-coi');
+		if (coiRequest === '3') {
+			headers['Cross-Origin-Opener-Policy'] = 'same-origin';
+			headers['Cross-Origin-Embedder-Policy'] = 'require-corp';
+		} else if (coiRequest === '2') {
+			headers['Cross-Origin-Embedder-Policy'] = 'require-corp';
+		} else if (coiRequest === '1') {
+			headers['Cross-Origin-Opener-Policy'] = 'same-origin';
+		}
+
 		const response = new Response(entry.data, {
 			status: 200,
 			headers
@@ -342,13 +407,15 @@ async function processLocalhostRequest(event, requestUrl) {
 	const origin = requestUrl.origin;
 
 	/**
-	 * @param {string | undefined} redirectOrigin
+	 * @param {RequestStoreResult<string | undefined>} result
 	 * @return {Promise<Response>}
 	 */
-	const resolveRedirect = async (redirectOrigin) => {
-		if (!redirectOrigin) {
+	const resolveRedirect = async (result) => {
+		if (result.status !== 'ok' || !result.value) {
 			return fetch(event.request);
 		}
+
+		const redirectOrigin = result.value;
 		const location = event.request.url.replace(new RegExp(`^${requestUrl.origin}(/|$)`), `${redirectOrigin}$1`);
 		return new Response(null, {
 			status: 302,
@@ -381,6 +448,15 @@ async function processLocalhostRequest(event, requestUrl) {
  * @returns {string | null}
  */
 function getWebviewIdForClient(client) {
+	// Refs https://github.com/microsoft/vscode/issues/244143
+	// With PlzDedicatedWorker, worker subresources and blob wokers
+	// will use clients different from the window client.
+	// Since we cannot different a worker main resource from a worker subresource
+	// we will use the global webview ID passed in at the time of
+	// service worker registration.
+	if (client.type === 'worker' || client.type === 'sharedworker') {
+		return ID;
+	}
 	const requesterClientUrl = new URL(client.url);
 	return requesterClientUrl.searchParams.get('id');
 }
@@ -395,5 +471,18 @@ async function getOuterIframeClient(webviewId) {
 		const clientUrl = new URL(client.url);
 		const hasExpectedPathName = (clientUrl.pathname === `${rootPath}/` || clientUrl.pathname === `${rootPath}/index.html` || clientUrl.pathname === `${rootPath}/index-no-csp.html`);
 		return hasExpectedPathName && clientUrl.searchParams.get('id') === webviewId;
+	});
+}
+
+/**
+ * @param {string} clientId
+ * @returns {Promise<Client|undefined>}
+ */
+async function getWorkerClientForId(clientId) {
+	const allDedicatedWorkerClients = await sw.clients.matchAll({ type: 'worker' });
+	const allSharedWorkerClients = await sw.clients.matchAll({ type: 'sharedworker' });
+	const allWorkerClients = [...allDedicatedWorkerClients, ...allSharedWorkerClients];
+	return allWorkerClients.find(client => {
+		return client.id === clientId;
 	});
 }
