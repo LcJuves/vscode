@@ -483,12 +483,6 @@ export class ChatService extends Disposable implements IChatService {
 			// without having to wait for the agent to be ready.
 			this.activateDefaultAgent(model.initialLocation).catch(e => this.logService.error(e));
 
-				const defaultAgent = this.chatAgentService.getActivatedAgents().find(agent => agent.id === defaultAgentData.id);
-				if (!defaultAgent) {
-					throw new ErrorNoTelemetry('No default agent registered');
-				}
-			}
-
 			model.initialize();
 		} catch (err) {
 			this.trace('startSession', `initializeSession failed: ${err}`);
