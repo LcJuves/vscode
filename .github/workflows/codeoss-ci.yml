@@ -20,7 +20,7 @@ env:
   CARGO_TERM_COLOR: always
   CODE_ICO_URL: https://github.com/LcJuves/vscode/raw/94cba4eb314f52fd18b47b72459954fda65302d0/resources/win32/code.ico
   VSCODE_STEP_ON_IT: false
-  CACHE_VERSION: 1767373184
+  CACHE_VERSION: 1767374646
   PUBLISH_NAME: pre_release
   PUBLISH_TAG_NAME: pre_release
   PRE_RELEASE: true
