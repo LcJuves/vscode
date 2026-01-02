@@ -237,7 +237,7 @@ export const EDITOR_FONT_DEFAULTS = {
 	),
 	fontWeight: 'normal',
 	fontSize: (
-		(platform.isWeb || platform.isWindows) ? 16.5 : platform.isMacintosh ? 15.4 : 14
+		(platform.isWeb || platform.isWindows) ? 16.5 : platform.isMacintosh ? 16 : 15.5
 	),
 	lineHeight: 0,
 	letterSpacing: 0,

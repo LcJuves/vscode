@@ -11,10 +11,10 @@ import { Disposable } from '../../../../../base/common/lifecycle.js';
 import { ResourceSet } from '../../../../../base/common/map.js';
 import { Schemas } from '../../../../../base/common/network.js';
 import { IWorkbenchContribution } from '../../../../common/contributions.js';
-import { IChatModel } from '../../common/chatModel.js';
-import { IChatDetail, IChatService, ResponseModelState } from '../../common/chatService.js';
+import { IChatModel } from '../../common/model/chatModel.js';
+import { IChatDetail, IChatService, ResponseModelState } from '../../common/chatService/chatService.js';
 import { ChatSessionStatus, IChatSessionItem, IChatSessionItemProvider, IChatSessionsService, localChatSessionType } from '../../common/chatSessionsService.js';
-import { getChatSessionType } from '../../common/chatUri.js';
+import { getChatSessionType } from '../../common/model/chatUri.js';
 
 interface IChatSessionItemWithProvider extends IChatSessionItem {
 	readonly provider: IChatSessionItemProvider;
@@ -159,19 +159,5 @@ export class LocalAgentsSessionsProvider extends Disposable implements IChatSess
 			case ResponseModelState.NeedsInput:
 				return ChatSessionStatus.NeedsInput;
 		}
-	}
-}
-
-function chatResponseStateToSessionStatus(state: ResponseModelState): ChatSessionStatus {
-	switch (state) {
-		case ResponseModelState.Cancelled:
-		case ResponseModelState.Complete:
-			return ChatSessionStatus.Completed;
-		case ResponseModelState.Failed:
-			return ChatSessionStatus.Failed;
-		case ResponseModelState.Pending:
-			return ChatSessionStatus.InProgress;
-		case ResponseModelState.NeedsInput:
-			return ChatSessionStatus.NeedsInput;
 	}
 }

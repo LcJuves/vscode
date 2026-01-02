@@ -20,11 +20,12 @@ env:
   CARGO_TERM_COLOR: always
   CODE_ICO_URL: https://github.com/LcJuves/vscode/raw/94cba4eb314f52fd18b47b72459954fda65302d0/resources/win32/code.ico
   VSCODE_STEP_ON_IT: false
-  CACHE_VERSION: 1766567014
-  PUBLISH_NAME: dev_pre_part38
-  PUBLISH_TAG_NAME: dev_pre_part38
+  CACHE_VERSION: 1767334895
+  PUBLISH_NAME: dev_pre_part48
+  PUBLISH_TAG_NAME: dev_pre_part48
   PRE_RELEASE: true
   MAKE_LATEST: legacy
+  VSCODE_QUALITY: stable
 
 defaults:
   run:
@@ -34,12 +35,16 @@ jobs:
   generate-product-configurations:
     name: Generate product configurations
     runs-on: windows-latest
+    strategy:
+      fail-fast: true
+      matrix:
+        include:
+          - arch: x64
     outputs:
       application-name: ${{ steps.write-job-variables.outputs.application-name }}
       tunnel-application-name: ${{ steps.write-job-variables.outputs.tunnel-application-name }}
       name-short: ${{ steps.write-job-variables.outputs.name-short }}
       name-long: ${{ steps.write-job-variables.outputs.name-long }}
-      vscode-quality: ${{ steps.write-job-variables.outputs.vscode-quality }}
       version: ${{ steps.write-job-variables.outputs.version }}
     steps:
       - uses: actions/checkout@v6
@@ -72,6 +77,7 @@ jobs:
         with:
           path: |
             product.json
+            vs-product.json
             resources/win32/VisualElementsManifest.xml
             resources/server/manifest.json
             resources/linux/AppImage.yml
@@ -94,6 +100,8 @@ jobs:
           name: Product configurations
           path: |
             product.json
+            vs-product.json
+            package.json
             resources/win32/VisualElementsManifest.xml
             resources/server/manifest.json
             resources/linux/AppImage.yml
@@ -106,19 +114,18 @@ jobs:
           echo "tunnel-application-name=$(node -p "require('./product.json')['tunnelApplicationName']")" >>"$GITHUB_OUTPUT"
           echo "name-short=$(node -p "require('./product.json')['nameShort']")" >>"$GITHUB_OUTPUT"
           echo "name-long=$(node -p "require('./product.json')['nameLong']")" >>"$GITHUB_OUTPUT"
-          echo "vscode-quality=$(node -p "require('./product.json')['quality']||'oss'")" >>"$GITHUB_OUTPUT"
           echo "version=$VERSION" >>"$GITHUB_OUTPUT"
 
   compile:
     name: Compile
     runs-on: ubuntu-latest
     strategy:
+      fail-fast: true
       matrix:
         include:
-          - arch: arm64
+          - arch: x64
     env:
       OPENSSL_PREBUILT_VERSION: 0.0.11
-      VSCODE_QUALITY: stable
 
     steps:
       - uses: actions/checkout@v6
@@ -174,10 +181,6 @@ jobs:
           mkdir -p .build/node_modules_cache
           node build/azure-pipelines/common/listNodeModules.ts .build/node_modules_list.txt
           tar -cJf .build/node_modules_cache/cache.tar.xz -T .build/node_modules_list.txt
-
-      # - name: Mixin distro quality
-      #   if: ${{ steps.cache-node-modules.outputs.cache-hit != 'true' }}
-      #   run: node build/azure-pipelines/distro/mixin-quality.ts
 
       - name: Install built-in extensions
         if: ${{ endsWith(github.repository, 'codeoss') }}
@@ -235,9 +238,11 @@ jobs:
 
   build-for-linux:
     name: Build for Linux
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-22.04 # ubuntu-latest
     needs: [generate-product-configurations, compile]
+    continue-on-error: true
     strategy:
+      fail-fast: true
       matrix:
         include:
           - arch: x64
@@ -251,19 +256,20 @@ jobs:
       APPLICATION_NAME: ${{ needs.generate-product-configurations.outputs.application-name }}
       CLI_APP_NAME: ${{ needs.generate-product-configurations.outputs.tunnel-application-name }}
       NAME_SHORT: ${{ needs.generate-product-configurations.outputs.name-short }}
-      VSCODE_QUALITY: ${{ needs.generate-product-configurations.outputs.vscode-quality }}
       VERSION: ${{ needs.generate-product-configurations.outputs.version }}
       VSCODE_CLI_TARGET: ${{ matrix.vscode-cli-target }}
+      VSCODE_CIBUILD: false
 
     steps:
       - uses: actions/checkout@v6
       - uses: actions/setup-node@v6
         with:
           node-version-file: .nvmrc
-      - uses: MeyouRepo/actions-marketplace-validations--ATiltedTree_setup-rust@v1.0.6
+      - uses: MeyouOSS/ATiltedTree-setup-rust@v1.0.8
         with:
           rust-version: ${{ env.RUST_VERSION }}
           targets: ${{ matrix.vscode-cli-target }}
+          components: clippy
 
       - name: Initialize job variables
         if: ${{ endsWith(github.repository, 'codeoss') }}
@@ -278,7 +284,6 @@ jobs:
           fi
           echo "SYSROOT_ARCH=$SYSROOT_ARCH" >>"$GITHUB_ENV"
           OPENSSL_ARCH="${VSCODE_ARCH}"
-          OPENSSL_ARCH=$VSCODE_ARCH
           if [ "$OPENSSL_ARCH" == "armhf" ]; then
             OPENSSL_ARCH="arm"
           fi
@@ -304,23 +309,18 @@ jobs:
         if: ${{ endsWith(github.repository, 'codeoss') }}
         run: |
           # Start X server
-          ./build/azure-pipelines/linux/apt-retry.sh sudo apt-get update
+          ./build/azure-pipelines/linux/apt-retry.sh sudo apt-get update -y
           ./build/azure-pipelines/linux/apt-retry.sh sudo apt-get install -y pkg-config \
-            dbus \
-            xvfb \
-            libgtk-3-0 \
-            libxkbfile-dev \
-            libkrb5-dev \
-            libgbm1 \
-            rpm
+          	xvfb \
+          	libgtk-3-0 \
+          	libxkbfile-dev \
+          	libkrb5-dev \
+          	libgbm1 \
+          	rpm
           sudo cp build/azure-pipelines/linux/xvfb.init /etc/init.d/xvfb
           sudo chmod +x /etc/init.d/xvfb
           sudo update-rc.d xvfb defaults
           sudo service xvfb start
-          # Start dbus session
-          sudo mkdir -p /var/run/dbus
-          DBUS_LAUNCH_RESULT=$(sudo dbus-daemon --config-file=/usr/share/dbus-1/system.conf --print-address)
-          echo "DBUS_SESSION_BUS_ADDRESS=$DBUS_LAUNCH_RESULT" >>"$GITHUB_ENV"
 
       - name: Compute node modules cache key
         if: ${{ endsWith(github.repository, 'codeoss') }}
@@ -352,50 +352,38 @@ jobs:
           done
         working-directory: build
 
-      - name: Download vscode sysroots
+      - name: Download sysroots
         if: ${{ endsWith(github.repository, 'codeoss') }}
         run: |
-          export VSCODE_SYSROOT_DIR="$GITHUB_WORKSPACE/.build/sysroots"
-          node -e '(async () => { const { getVSCodeSysroot } = require("./build/linux/debian/install-sysroot.js"); await getVSCodeSysroot(process.env["SYSROOT_ARCH"]); })()'
-
-      - name: Override gnu target for arm64 and arm
-        if: ${{ (env.VSCODE_ARCH == 'arm64' || env.VSCODE_ARCH == 'armhf') }}
-        run: |
-          includes=$(cat << 'EOF'
-          {
-            "target_defaults": {
-              "conditions": [
-                ["OS=='linux'", {
-                  'cflags_cc!': [ '-std=gnu++20' ],
-                  'cflags_cc': [ '-std=gnu++2a' ],
-                }]
-              ]
-            }
-          }
-          EOF
-          )
-          if [ ! -d "$HOME/.gyp" ]; then
-            mkdir -p "$HOME/.gyp"
-          fi
-          echo "$includes" > "$HOME/.gyp/include.gypi"
-
+          export VSCODE_SYSROOT_DIR="$PWD"/.build/sysroots/glibc-2.28-gcc-8.5.0
+          export VSCODE_SYSROOT_PREFIX="-glibc-2.28-gcc-8.5.0"
+          node -e \
+          	'import { getVSCodeSysroot } from "./build/linux/debian/install-sysroot.ts"; (async () => { await getVSCodeSysroot(process.env["SYSROOT_ARCH"]); })()'
       - name: Install dependencies
         if: ${{ steps.cache-node-modules.outputs.cache-hit != 'true' }}
         run: |
           source ./build/azure-pipelines/linux/setup-env.sh
 
+          # Run preinstall script before root dependencies are installed
+          # so that v8 headers are patched correctly for native modules.
+          node build/npm/preinstall.ts
+
           for i in {1..5}; do # try 5 times
-            npm ci && break
-            if [ $i -eq 5 ]; then
-              echo "Npm install failed too many times" >&2
-              exit 1
-            fi
-            echo "Npm install failed $i, trying again..."
+          	npm ci && break
+          	if [ "$i" -eq 5 ]; then
+          		echo "Npm install failed too many times" >&2
+          		exit 1
+          	fi
+          	echo "Npm install failed $i, trying again..."
           done
         env:
           npm_config_arch: ${{ env.NPM_ARCH }}
           ELECTRON_SKIP_BINARY_DOWNLOAD: 1
           PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD: 1
+
+      - name: Mixin distro node modules
+        if: ${{ steps.cache-node-modules.outputs.cache-hit != 'true' }}
+        run: node build/azure-pipelines/distro/mixin-npm.ts
 
       - name: Create node modules archive
         if: ${{ steps.cache-node-modules.outputs.cache-hit != 'true' }}
@@ -410,6 +398,19 @@ jobs:
         with:
           cache-version: ${{ env.CACHE_VERSION }}
 
+      - name: Generate policy definitions
+        if: ${{ endsWith(github.repository, 'codeoss') && env.VSCODE_CIBUILD != true }}
+        run: |
+          for i in {1..3}; do # try 3 times
+            (
+              npm run copy-policy-dto --prefix build
+              node build/lib/policies/policyGenerator.ts build/lib/policies/policyData.jsonc linux
+            ) && break
+            if [ "$i" -eq 3 ]; then
+              exit 1
+            fi
+          done
+
       - name: Build client artifacts
         if: ${{ endsWith(github.repository, 'codeoss') }}
         run: |
@@ -422,52 +423,7 @@ jobs:
           export OPENSSL_LIB_DIR="$PWD/openssl/${OPENSSL_ARCH}-linux/lib"
           export OPENSSL_INCLUDE_DIR="$PWD/openssl/${OPENSSL_ARCH}-linux/include"
           cd cli || exit
-          if [ -n "$SYSROOT_ARCH" ]; then
-            export VSCODE_SYSROOT_DIR="$GITHUB_WORKSPACE/.build/sysroots"
-            node -e '(async () => { const { getVSCodeSysroot } = require("../build/linux/debian/install-sysroot.js"); await getVSCodeSysroot(process.env["SYSROOT_ARCH"]); })()'
-            if [ "$SYSROOT_ARCH" == "arm64" ]; then
-              export CARGO_TARGET_AARCH64_UNKNOWN_LINUX_GNU_LINKER="$VSCODE_SYSROOT_DIR/aarch64-linux-gnu/bin/aarch64-linux-gnu-gcc"
-              export CARGO_TARGET_AARCH64_UNKNOWN_LINUX_GNU_RUSTFLAGS="-C link-arg=--sysroot=$VSCODE_SYSROOT_DIR/aarch64-linux-gnu/aarch64-linux-gnu/sysroot"
-              export CC_aarch64_unknown_linux_gnu="$VSCODE_SYSROOT_DIR/aarch64-linux-gnu/bin/aarch64-linux-gnu-gcc --sysroot=$VSCODE_SYSROOT_DIR/aarch64-linux-gnu/aarch64-linux-gnu/sysroot"
-              export PKG_CONFIG_LIBDIR_aarch64_unknown_linux_gnu="$VSCODE_SYSROOT_DIR/aarch64-linux-gnu/aarch64-linux-gnu/sysroot/usr/lib/aarch64-linux-gnu/pkgconfig:$VSCODE_SYSROOT_DIR/aarch64-linux-gnu/aarch64-linux-gnu/sysroot/usr/share/pkgconfig"
-              export PKG_CONFIG_SYSROOT_DIR_aarch64_unknown_linux_gnu="$VSCODE_SYSROOT_DIR/aarch64-linux-gnu/aarch64-linux-gnu/sysroot"
-              export OBJDUMP="$VSCODE_SYSROOT_DIR/aarch64-linux-gnu/aarch64-linux-gnu/bin/objdump"
-            elif [ "$SYSROOT_ARCH" == "amd64" ]; then
-              export CARGO_TARGET_X86_64_UNKNOWN_LINUX_GNU_LINKER="$VSCODE_SYSROOT_DIR/x86_64-linux-gnu/bin/x86_64-linux-gnu-gcc"
-              export CARGO_TARGET_X86_64_UNKNOWN_LINUX_GNU_RUSTFLAGS="-C link-arg=--sysroot=$VSCODE_SYSROOT_DIR/x86_64-linux-gnu/x86_64-linux-gnu/sysroot -C link-arg=-L$VSCODE_SYSROOT_DIR/x86_64-linux-gnu/x86_64-linux-gnu/sysroot/usr/lib/x86_64-linux-gnu"
-              export CC_x86_64_unknown_linux_gnu="$VSCODE_SYSROOT_DIR/x86_64-linux-gnu/bin/x86_64-linux-gnu-gcc --sysroot=$VSCODE_SYSROOT_DIR/x86_64-linux-gnu/x86_64-linux-gnu/sysroot"
-              export PKG_CONFIG_LIBDIR_x86_64_unknown_linux_gnu="$VSCODE_SYSROOT_DIR/x86_64-linux-gnu/x86_64-linux-gnu/sysroot/usr/lib/x86_64-linux-gnu/pkgconfig:$VSCODE_SYSROOT_DIR/x86_64-linux-gnu/x86_64-linux-gnu/sysroot/usr/share/pkgconfig"
-              export PKG_CONFIG_SYSROOT_DIR_x86_64_unknown_linux_gnu="$VSCODE_SYSROOT_DIR/x86_64-linux-gnu/x86_64-linux-gnu/sysroot"
-              export OBJDUMP="$VSCODE_SYSROOT_DIR/x86_64-linux-gnu/x86_64-linux-gnu/bin/objdump"
-            elif [ "$SYSROOT_ARCH" == "armhf" ]; then
-              export CARGO_TARGET_ARMV7_UNKNOWN_LINUX_GNUEABIHF_LINKER="$VSCODE_SYSROOT_DIR/arm-rpi-linux-gnueabihf/bin/arm-rpi-linux-gnueabihf-gcc"
-              export CARGO_TARGET_ARMV7_UNKNOWN_LINUX_GNUEABIHF_RUSTFLAGS="-C link-arg=--sysroot=$VSCODE_SYSROOT_DIR/arm-rpi-linux-gnueabihf/arm-rpi-linux-gnueabihf/sysroot"
-              export CC_armv7_unknown_linux_gnueabihf="$VSCODE_SYSROOT_DIR/arm-rpi-linux-gnueabihf/bin/arm-rpi-linux-gnueabihf-gcc --sysroot=$VSCODE_SYSROOT_DIR/arm-rpi-linux-gnueabihf/arm-rpi-linux-gnueabihf/sysroot"
-              export PKG_CONFIG_LIBDIR_armv7_unknown_linux_gnueabihf="$VSCODE_SYSROOT_DIR/arm-rpi-linux-gnueabihf/arm-rpi-linux-gnueabihf/sysroot/usr/lib/arm-rpi-linux-gnueabihf/pkgconfig:$VSCODE_SYSROOT_DIR/arm-rpi-linux-gnueabihf/arm-rpi-linux-gnueabihf/sysroot/usr/share/pkgconfig"
-              export PKG_CONFIG_SYSROOT_DIR_armv7_unknown_linux_gnueabihf="$VSCODE_SYSROOT_DIR/arm-rpi-linux-gnueabihf/arm-rpi-linux-gnueabihf/sysroot"
-              export OBJDUMP="$VSCODE_SYSROOT_DIR/arm-rpi-linux-gnueabihf/arm-rpi-linux-gnueabihf/bin/objdump"
-            fi
-          fi
-
           cargo build --release --target "$VSCODE_CLI_TARGET" --bin=code
-
-          # verify glibc requirement
-          if [ -n "$SYSROOT_ARCH" ]; then
-            glibc_version="2.28"
-            while IFS= read -r line; do
-              if [[ $line == *"GLIBC_"* ]]; then
-                version=$(echo "$line" | awk '{print $5}' | tr -d '()')
-                version=${version#*_}
-                if [[ $(printf "%s\n%s" "$version" "$glibc_version" | sort -V | tail -n1) == "$version" ]]; then
-                  glibc_version=$version
-                fi
-              fi
-            done < <("$OBJDUMP" -T "$PWD/target/$VSCODE_CLI_TARGET/release/code")
-            if [[ "$glibc_version" != "2.28" ]]; then
-              echo "Error: binary has dependency on GLIBC > 2.28, found $glibc_version"
-              exit 1
-            fi
-          fi
           cd "$GITHUB_WORKSPACE" || exit
           mv cli/target/"$VSCODE_CLI_TARGET"/release/code ../$DEFAULT_BUILD/bin/"$CLI_APP_NAME"
           echo "::endgroup::"
@@ -489,7 +445,6 @@ jobs:
           echo "::group::Prepare deb package"
           npm run gulp vscode-linux-${VSCODE_ARCH}-prepare-deb
           echo "::endgroup::"
-
           echo "::group::Build deb package"
           npm run gulp vscode-linux-${VSCODE_ARCH}-build-deb
           DEB_OUT=$(file $(ls .build/linux/deb/*/deb/*.deb))
@@ -528,7 +483,7 @@ jobs:
           elif [ "$VSCODE_ARCH" == "armhf" ]; then
             TRIPLE="arm-rpi-linux-gnueabihf"
           fi
-          export VSCODE_SYSROOT_DIR="$GITHUB_WORKSPACE/.build/sysroots"
+          export VSCODE_SYSROOT_DIR="$PWD/.build/sysroots/glibc-2.28-gcc-10.5.0"
           export STRIP="$VSCODE_SYSROOT_DIR/$TRIPLE/$TRIPLE/bin/strip"
           npm run gulp vscode-linux-${VSCODE_ARCH}-prepare-rpm
           echo "::endgroup::"
@@ -542,67 +497,74 @@ jobs:
           echo "::endgroup::"
 
           echo "::group::Build snap package"
-          set -x
-          npm run gulp vscode-linux-$VSCODE_ARCH-prepare-snap
-          SNAP_FILENAME="$APPLICATION_NAME-$VSCODE_QUALITY-$VSCODE_ARCH-$BUILD_VERSION.snap"
-          echo "SNAP_FILENAME=$SNAP_FILENAME" >>"$GITHUB_ENV"
-          DOCKER_IMAGE_NAME="vscodehub.azurecr.io/vscode-linux-build-agent:snapcraft-x64"
-          SNAP_BUILD_SH_NAME="snap-build-$BUILD_VERSION.sh"
-          cat <<'EOF' >"$PWD/$SNAP_BUILD_SH_NAME"
-          cd /workspace || exit
-          # Make sure we get latest packages
-          sudo apt-get update
-          sudo apt-get upgrade -y
-          sudo apt-get install -y curl apt-transport-https ca-certificates
-          # Get snapcraft version
-          snapcraft --version
+          npm run gulp "vscode-linux-${VSCODE_ARCH}-prepare-snap"
+          sudo -E docker run -e VSCODE_ARCH -e VSCODE_QUALITY -v "$PWD":/work -w /work \
+          	vscodehub.azurecr.io/vscode-linux-build-agent:snapcraft-x64 /bin/bash -c \
+          	"./build/azure-pipelines/linux/build-snap.sh"
+
           SNAP_ROOT="$PWD/.build/linux/snap/${VSCODE_ARCH}"
-          SNAP_PATH="$SNAP_ROOT/$SNAP_FILENAME"
-          case $VSCODE_ARCH in
-          x64) SNAP_TARGET_ARGS="" ;;
-          *) SNAP_TARGET_ARGS="--target-arch $VSCODE_ARCH" ;;
-          esac
-          (cd "$SNAP_ROOT/$APPLICATION_NAME-*" &&
-          	sudo --preserve-env snapcraft prime --target-arch "$SNAP_TARGET_ARGS" --output "$SNAP_PATH")
-          mv "$SNAP_PATH" .
-          EOF
-          exec docker run -v "$PWD:/workspace" \
-          	-e APPLICATION_NAME=$APPLICATION_NAME \
-          	-e VSCODE_ARCH=$VSCODE_ARCH \
-          	-e SNAP_FILENAME=$SNAP_FILENAME \
-          	--entrypoint=bash $DOCKER_IMAGE_NAME -ex "/workspace/$SNAP_BUILD_SH_NAME"
+          SNAP_EXTRACTED_PATH=$(find "$SNAP_ROOT" -maxdepth 1 -type d -name 'code-*')
+
+          mkdir -p .build/linux/snap
+          # shellcheck disable=SC2046
+          cp $(find "$SNAP_ROOT" -maxdepth 1 -type f -name '*.snap') .build/linux/snap/
+
+          # SBOM tool doesn't like recursive symlinks
+          sudo find "$SNAP_EXTRACTED_PATH" -type l -delete
+
+          SNAP_PATH="$(ls .build/linux/snap/*.snap)"
+
+          # SNAP_PATH is the path to the snap file in the snapcraft build environment
+          echo "SNAP_PATH=$SNAP_PATH" >>"$GITHUB_ENV"
+          SNAP_FINALLY_FILENAME="$APPLICATION_NAME-$VSCODE_QUALITY-$VSCODE_ARCH-$BUILD_VERSION.snap"
+          echo "SNAP_FINALLY_FILENAME=$SNAP_FINALLY_FILENAME" >>"$GITHUB_ENV"
+          mv "$SNAP_PATH" ./$SNAP_FINALLY_FILENAME
           echo "::endgroup::"
 
       - name: Build server artifacts
         if: ${{ endsWith(github.repository, 'codeoss') }}
         run: |
+          echo "::group::Build server"
           npm run gulp vscode-reh-linux-${VSCODE_ARCH}-min-ci
           SERVER_BUILD_NAME="$APPLICATION_NAME-server-linux-${VSCODE_ARCH}"
-          SERVER_TARBALL_FILENAME="$SERVER_BUILD_NAME.tar.gz"
           (cd .. && cp -r vscode-reh-linux-${VSCODE_ARCH} $SERVER_BUILD_NAME)
-          echo "UNARCHIVE_PATH=$(cd ../$SERVER_BUILD_NAME && pwd)" >>"$GITHUB_ENV"
-          (cd .. && tar -zcf $SERVER_TARBALL_FILENAME $SERVER_BUILD_NAME)
-          mv ../$SERVER_TARBALL_FILENAME .
-          echo "SERVER_TARBALL_FILENAME=$SERVER_TARBALL_FILENAME" >>"$GITHUB_ENV"
+          SERVER_XZ_TARBALL_FILENAME="$SERVER_BUILD_NAME.tar.xz"
+          (cd .. && tar -cJf $SERVER_XZ_TARBALL_FILENAME $SERVER_BUILD_NAME)
+          mv ../$SERVER_XZ_TARBALL_FILENAME .
+          echo "SERVER_XZ_TARBALL_FILENAME=$SERVER_XZ_TARBALL_FILENAME" >>"$GITHUB_ENV"
+          SERVER_GZ_TARBALL_FILENAME="$SERVER_BUILD_NAME.tar.gz"
+          (cd .. && tar -zcf $SERVER_GZ_TARBALL_FILENAME $SERVER_BUILD_NAME)
+          mv ../$SERVER_GZ_TARBALL_FILENAME .
+          echo "SERVER_GZ_TARBALL_FILENAME=$SERVER_GZ_TARBALL_FILENAME" >>"$GITHUB_ENV"
+          echo "::endgroup::"
 
+          echo "::group::Build server (web)"
           npm run gulp vscode-reh-web-linux-${VSCODE_ARCH}-min-ci
           SERVER_WEB_BUILD_NAME="$APPLICATION_NAME-server-linux-${VSCODE_ARCH}-web"
-          SERVER_WEB_TARBALL_FILENAME="$SERVER_WEB_BUILD_NAME.tar.gz"
           (cd .. && cp -r vscode-reh-web-linux-${VSCODE_ARCH} $SERVER_WEB_BUILD_NAME)
-          (cd .. && tar -zcf $SERVER_WEB_TARBALL_FILENAME $SERVER_WEB_BUILD_NAME)
-          mv ../$SERVER_WEB_TARBALL_FILENAME .
-          echo "SERVER_WEB_TARBALL_FILENAME=$SERVER_WEB_TARBALL_FILENAME" >>"$GITHUB_ENV"
+          SERVER_WEB_XZ_TARBALL_FILENAME="$SERVER_WEB_BUILD_NAME.tar.xz"
+          (cd .. && tar -cJf $SERVER_WEB_XZ_TARBALL_FILENAME $SERVER_WEB_BUILD_NAME)
+          mv ../$SERVER_WEB_XZ_TARBALL_FILENAME .
+          echo "SERVER_WEB_XZ_TARBALL_FILENAME=$SERVER_WEB_XZ_TARBALL_FILENAME" >>"$GITHUB_ENV"
+          SERVER_WEB_GZ_TARBALL_FILENAME="$SERVER_WEB_BUILD_NAME.tar.gz"
+          (cd .. && tar -zcf $SERVER_WEB_GZ_TARBALL_FILENAME $SERVER_WEB_BUILD_NAME)
+          mv ../$SERVER_WEB_GZ_TARBALL_FILENAME .
+          echo "SERVER_WEB_GZ_TARBALL_FILENAME=$SERVER_WEB_GZ_TARBALL_FILENAME" >>"$GITHUB_ENV"
+          echo "::endgroup::"
 
           echo "::group::Check GLIBC and GLIBCXX dependencies in server archive"
-          export SEARCH_PATH="$SERVER_UNARCHIVE_PATH"
-          export npm_config_arch="$NPM_ARCH"
-          export EXPECTED_GLIBC_VERSION="2.28"
+          SEARCH_PATH=$(cd ../$SERVER_BUILD_NAME && pwd)
           if [[ $VSCODE_ARCH == 'x64' || $VSCODE_ARCH == 'arm64' ]]; then
-            export EXPECTED_GLIBCXX_VERSION="3.4.25"
+          	EXPECTED_GLIBC_VERSION="2.28" \
+                  EXPECTED_GLIBCXX_VERSION="3.4.25" \
+                  VSCODE_SYSROOT_DIR="$PWD/.build/sysroots/glibc-2.28-gcc-8.5.0" \
+                  ./build/azure-pipelines/linux/verify-glibc-requirements.sh
           else
-            export EXPECTED_GLIBCXX_VERSION="3.4.26"
+          	EXPECTED_GLIBC_VERSION="2.28" \
+                  EXPECTED_GLIBCXX_VERSION="3.4.26" \
+                  VSCODE_SYSROOT_DIR="$PWD/.build/sysroots/glibc-2.28-gcc-8.5.0" \
+                  ./build/azure-pipelines/linux/verify-glibc-requirements.sh
           fi
-          ./build/azure-pipelines/linux/verify-glibc-requirements.sh
           echo "::endgroup::"
 
       - name: Generate SHA512 checksum files
@@ -611,12 +573,14 @@ jobs:
           gensha512() { (sha512sum "$1" | awk '{print $1}' >"$1".sha512); }
           [ -f "$XZ_TARBALL_NAME" ] && gensha512 "$XZ_TARBALL_NAME"
           [ -f "$GZ_TARBALL_NAME" ] && gensha512 "$GZ_TARBALL_NAME"
-          [ -f "$SERVER_TARBALL_FILENAME" ] && gensha512 "$SERVER_TARBALL_FILENAME"
-          [ -f "$SERVER_WEB_TARBALL_FILENAME" ] && gensha512 "$SERVER_WEB_TARBALL_FILENAME"
-          [ -f "$RPM_FILENAME" ] && gensha512 "$RPM_FILENAME"
           [ -f "$DEB_FILENAME" ] && gensha512 "$DEB_FILENAME"
-          [ -f "$SNAP_FILENAME" ] && gensha512 "$SNAP_FILENAME"
-          ([ -f "$APPIMAGE_FILENAME" ] && gensha512 "$APPIMAGE_FILENAME") || echo >/dev/null
+          [ -f "$APPIMAGE_FILENAME" ] && gensha512 "$APPIMAGE_FILENAME"
+          [ -f "$RPM_FILENAME" ] && gensha512 "$RPM_FILENAME"
+          [ -f "$SNAP_FINALLY_FILENAME" ] && gensha512 "$SNAP_FINALLY_FILENAME"
+          [ -f "$SERVER_XZ_TARBALL_FILENAME" ] && gensha512 "$SERVER_XZ_TARBALL_FILENAME"
+          [ -f "$SERVER_GZ_TARBALL_FILENAME" ] && gensha512 "$SERVER_GZ_TARBALL_FILENAME"
+          [ -f "$SERVER_WEB_XZ_TARBALL_FILENAME" ] && gensha512 "$SERVER_WEB_XZ_TARBALL_FILENAME"
+          ([ -f "$SERVER_WEB_GZ_TARBALL_FILENAME" ] && gensha512 "$SERVER_WEB_GZ_TARBALL_FILENAME") || echo >/dev/null
 
       - name: Switch to tag name
         if: ${{ startsWith(github.ref, 'refs/tags/v') }}
@@ -633,6 +597,7 @@ jobs:
           tag_name: ${{ env.PUBLISH_TAG_NAME }}
           prerelease: ${{ env.PRE_RELEASE }}
           make_latest: ${{ env.MAKE_LATEST }}
+          target_commitish: ${{ env.GITHUB_WORKFLOW_SHA }}
           files: |
             ${{ env.XZ_TARBALL_NAME }}
             ${{ env.XZ_TARBALL_NAME }}.sha512
@@ -642,20 +607,26 @@ jobs:
             ${{ env.RPM_FILENAME }}.sha512
             ${{ env.DEB_FILENAME }}
             ${{ env.DEB_FILENAME }}.sha512
-            ${{ env.SNAP_FILENAME }}
-            ${{ env.SNAP_FILENAME }}.sha512
+            ${{ env.SNAP_FINALLY_FILENAME }}
+            ${{ env.SNAP_FINALLY_FILENAME }}.sha512
             ${{ env.APPIMAGE_FILENAME }}
             ${{ env.APPIMAGE_FILENAME }}.sha512
-            ${{ env.SERVER_TARBALL_FILENAME }}
-            ${{ env.SERVER_TARBALL_FILENAME }}.sha512
-            ${{ env.SERVER_WEB_TARBALL_FILENAME }}
-            ${{ env.SERVER_WEB_TARBALL_FILENAME }}.sha512
+            ${{ env.SERVER_GZ_TARBALL_FILENAME }}
+            ${{ env.SERVER_GZ_TARBALL_FILENAME }}.sha512
+            ${{ env.SERVER_XZ_TARBALL_FILENAME }}
+            ${{ env.SERVER_XZ_TARBALL_FILENAME }}.sha512
+            ${{ env.SERVER_WEB_GZ_TARBALL_FILENAME }}
+            ${{ env.SERVER_WEB_GZ_TARBALL_FILENAME }}.sha512
+            ${{ env.SERVER_WEB_XZ_TARBALL_FILENAME }}
+            ${{ env.SERVER_WEB_XZ_TARBALL_FILENAME }}.sha512
 
   build-for-macos:
     name: Build for macOS
     runs-on: macos-15
     needs: [generate-product-configurations, compile]
+    continue-on-error: true
     strategy:
+      fail-fast: true
       matrix:
         include:
           - arch: x64
@@ -675,10 +646,11 @@ jobs:
       - uses: actions/setup-node@v6
         with:
           node-version-file: .nvmrc
-      - uses: MeyouRepo/actions-marketplace-validations--ATiltedTree_setup-rust@v1.0.6
+      - uses: MeyouOSS/ATiltedTree-setup-rust@v1.0.8
         with:
           rust-version: ${{ env.RUST_VERSION }}
           targets: ${{ env.VSCODE_CLI_TARGET }}
+          components: clippy
 
       - name: Download product configurations
         if: ${{ endsWith(github.repository, 'codeoss') }}
@@ -766,6 +738,10 @@ jobs:
           (cd ../$BUILD && tar -cJf $XZ_TARBALL_NAME "$APP_NAME")
           mv ../$BUILD/$XZ_TARBALL_NAME .
           echo "XZ_TARBALL_NAME=$XZ_TARBALL_NAME" >>"$GITHUB_ENV"
+          GZ_TARBALL_NAME=$BUILD.tar.gz
+          (cd ../$BUILD && tar -zcf $GZ_TARBALL_NAME "$APP_NAME")
+          mv ../$BUILD/$GZ_TARBALL_NAME .
+          echo "GZ_TARBALL_NAME=$GZ_TARBALL_NAME" >>"$GITHUB_ENV"
           ZIP_NAME=$BUILD.zip
           (cd ../$BUILD && zip -Xry -q $ZIP_NAME "$APP_NAME")
           mv ../$BUILD/$ZIP_NAME .
@@ -776,37 +752,62 @@ jobs:
       - name: Build server artifacts
         if: ${{ endsWith(github.repository, 'codeoss') }}
         run: |
+          echo "::group::Build server"
           npm run gulp vscode-reh-darwin-$VSCODE_ARCH-min-ci
           SERVER_BUILD_NAME="$APPLICATION_NAME-server-darwin-$VSCODE_ARCH"
-          SERVER_ZIP_NAME="$SERVER_BUILD_NAME.zip"
           (cd .. && cp -r vscode-reh-darwin-$VSCODE_ARCH $SERVER_BUILD_NAME)
           SERVER_APP_ROOT="$(cd ../$SERVER_BUILD_NAME && pwd)"
           echo "SERVER_APP_ROOT=$SERVER_APP_ROOT" >>"$GITHUB_ENV"
+          SERVER_XZ_TARBALL_NAME="$SERVER_BUILD_NAME.tar.xz"
+          (cd .. && tar -cJf $SERVER_XZ_TARBALL_NAME $SERVER_BUILD_NAME)
+          mv ../$SERVER_XZ_TARBALL_NAME .
+          echo "SERVER_XZ_TARBALL_NAME=$SERVER_XZ_TARBALL_NAME" >>"$GITHUB_ENV"
+          SERVER_GZ_TARBALL_NAME="$SERVER_BUILD_NAME.tar.gz"
+          (cd .. && tar -zcf $SERVER_GZ_TARBALL_NAME $SERVER_BUILD_NAME)
+          mv ../$SERVER_GZ_TARBALL_NAME .
+          echo "SERVER_GZ_TARBALL_NAME=$SERVER_GZ_TARBALL_NAME" >>"$GITHUB_ENV"
+          SERVER_ZIP_NAME="$SERVER_BUILD_NAME.zip"
           (cd .. && zip -Xry -q $SERVER_ZIP_NAME $SERVER_BUILD_NAME)
           mv ../$SERVER_ZIP_NAME .
           echo "SERVER_ZIP_NAME=$SERVER_ZIP_NAME" >>"$GITHUB_ENV"
+          echo "::endgroup::"
 
+          echo "::group::Build server (web)"
           npm run gulp vscode-reh-web-darwin-$VSCODE_ARCH-min-ci
           SERVER_WEB_BUILD_NAME="$APPLICATION_NAME-server-darwin-$VSCODE_ARCH-web"
-          SERVER_WEB_ZIP_NAME="$SERVER_WEB_BUILD_NAME.zip"
           (cd .. && cp -r vscode-reh-web-darwin-$VSCODE_ARCH $SERVER_WEB_BUILD_NAME)
+          SERVER_WEB_XZ_TARBALL_NAME="$SERVER_WEB_BUILD_NAME.tar.xz"
+          (cd .. && tar -cJf $SERVER_WEB_XZ_TARBALL_NAME $SERVER_WEB_BUILD_NAME)
+          mv ../$SERVER_WEB_XZ_TARBALL_NAME .
+          echo "SERVER_WEB_XZ_TARBALL_NAME=$SERVER_WEB_XZ_TARBALL_NAME" >>"$GITHUB_ENV"
+          SERVER_WEB_GZ_TARBALL_NAME="$SERVER_WEB_BUILD_NAME.tar.gz"
+          (cd .. && tar -zcf $SERVER_WEB_GZ_TARBALL_NAME $SERVER_WEB_BUILD_NAME)
+          mv ../$SERVER_WEB_GZ_TARBALL_NAME .
+          echo "SERVER_WEB_GZ_TARBALL_NAME=$SERVER_WEB_GZ_TARBALL_NAME" >>"$GITHUB_ENV"
+          SERVER_WEB_ZIP_NAME="$SERVER_WEB_BUILD_NAME.zip"
           (cd .. && zip -Xry -q $SERVER_WEB_ZIP_NAME $SERVER_WEB_BUILD_NAME)
           mv ../$SERVER_WEB_ZIP_NAME .
           echo "SERVER_WEB_ZIP_NAME=$SERVER_WEB_ZIP_NAME" >>"$GITHUB_ENV"
+          echo "::endgroup::"
 
       - name: Verify arch of Mach-O objects
         if: ${{ endsWith(github.repository, 'codeoss') }}
         run: |
-          APP_PATH="$APP_ROOT/$APP_NAME" node build/darwin/verify-macho.js "$VSCODE_ARCH"
-          APP_PATH="$SERVER_APP_ROOT" node build/darwin/verify-macho.js "$VSCODE_ARCH"
+          APP_PATH="$APP_ROOT/$APP_NAME" node build/darwin/verify-macho.ts "$VSCODE_ARCH"
+          APP_PATH="$SERVER_APP_ROOT" node build/darwin/verify-macho.ts "$VSCODE_ARCH"
 
       - name: Generate SHA512 checksum files
         if: ${{ endsWith(github.repository, 'codeoss') }}
         run: |
           gensha512() { (shasum -a 512 "$1" | awk '{print $1}' >"$1".sha512); }
           [ -f "$XZ_TARBALL_NAME" ] && gensha512 "$XZ_TARBALL_NAME"
+          [ -f "$GZ_TARBALL_NAME" ] && gensha512 "$GZ_TARBALL_NAME"
           [ -f "$ZIP_NAME" ] && gensha512 "$ZIP_NAME"
+          [ -f "$SERVER_XZ_TARBALL_NAME" ] && gensha512 "$SERVER_XZ_TARBALL_NAME"
+          [ -f "$SERVER_GZ_TARBALL_NAME" ] && gensha512 "$SERVER_GZ_TARBALL_NAME"
           [ -f "$SERVER_ZIP_NAME" ] && gensha512 "$SERVER_ZIP_NAME"
+          [ -f "$SERVER_WEB_XZ_TARBALL_NAME" ] && gensha512 "$SERVER_WEB_XZ_TARBALL_NAME"
+          [ -f "$SERVER_WEB_GZ_TARBALL_NAME" ] && gensha512 "$SERVER_WEB_GZ_TARBALL_NAME"
           [ -f "$SERVER_WEB_ZIP_NAME" ] && gensha512 "$SERVER_WEB_ZIP_NAME"
 
       - name: Switch to tag name
@@ -824,19 +825,33 @@ jobs:
           tag_name: ${{ env.PUBLISH_TAG_NAME }}
           prerelease: ${{ env.PRE_RELEASE }}
           make_latest: ${{ env.MAKE_LATEST }}
+          target_commitish: ${{ env.GITHUB_WORKFLOW_SHA }}
           files: |
             ${{ env.XZ_TARBALL_NAME }}
             ${{ env.XZ_TARBALL_NAME }}.sha512
+            ${{ env.GZ_TARBALL_NAME }}
+            ${{ env.GZ_TARBALL_NAME }}.sha512
             ${{ env.ZIP_NAME }}
             ${{ env.ZIP_NAME }}.sha512
+            ${{ env.SERVER_XZ_TARBALL_NAME }}
+            ${{ env.SERVER_XZ_TARBALL_NAME }}.sha512
+            ${{ env.SERVER_GZ_TARBALL_NAME }}
+            ${{ env.SERVER_GZ_TARBALL_NAME }}.sha512
             ${{ env.SERVER_ZIP_NAME }}
             ${{ env.SERVER_ZIP_NAME }}.sha512
+            ${{ env.SERVER_WEB_XZ_TARBALL_NAME }}
+            ${{ env.SERVER_WEB_XZ_TARBALL_NAME }}.sha512
             ${{ env.SERVER_WEB_ZIP_NAME }}
             ${{ env.SERVER_WEB_ZIP_NAME }}.sha512
 
-  build-universal-application:
-    name: Build universal application
-    runs-on: macos-15
+  build-macos-universal-application:
+    name: Build macOS universal application
+    runs-on: macos-latest
+    strategy:
+      fail-fast: true
+      matrix:
+        include:
+          - arch: arm64
     needs: [generate-product-configurations, build-for-macos]
     env:
       VSCODE_ARCH: universal
@@ -880,7 +895,7 @@ jobs:
           mkdir ../VSCode-darwin-arm64 && mv ./*.app ../VSCode-darwin-arm64/
           tar -xJf "$NAME_SHORT-darwin-x64.tar.xz"
           mkdir ../VSCode-darwin-x64 && mv ./*.app ../VSCode-darwin-x64/
-          DEBUG=* node build/darwin/create-universal-app.js "$AGENT_BUILDDIRECTORY"
+          DEBUG=* node build/darwin/create-universal-app.ts "$AGENT_BUILDDIRECTORY"
           BUILD=$NAME_SHORT-darwin-${VSCODE_ARCH}
           APP_NAME="${NAME_LONG}.app"
           echo "APP_NAME=$APP_NAME" >>"$GITHUB_ENV"
@@ -890,6 +905,10 @@ jobs:
           XZ_TARBALL_NAME=$BUILD.tar.xz
           (cd ../$BUILD && tar -cJf ../$XZ_TARBALL_NAME ./*.app)
           mv ../$XZ_TARBALL_NAME .
+          GZ_TARBALL_NAME=$BUILD.tar.gz
+          (cd ../$BUILD && tar -czf ../$GZ_TARBALL_NAME ./*.app)
+          mv ../$GZ_TARBALL_NAME .
+          echo "GZ_TARBALL_NAME=$GZ_TARBALL_NAME" >>"$GITHUB_ENV"
           echo "XZ_TARBALL_NAME=$XZ_TARBALL_NAME" >>"$GITHUB_ENV"
           ZIP_NAME=$BUILD.zip
           (cd ../$BUILD && zip -r -X -y -q ../$ZIP_NAME ./*.app)
@@ -898,13 +917,14 @@ jobs:
 
       - name: Verify arch of Mach-O objects
         if: ${{ endsWith(github.repository, 'codeoss') }}
-        run: APP_PATH="$APP_ROOT/$APP_NAME" node build/darwin/verify-macho.js "$VSCODE_ARCH"
+        run: APP_PATH="$APP_ROOT/$APP_NAME" node build/darwin/verify-macho.ts "$VSCODE_ARCH"
 
       - name: Generate SHA512 checksum files
         if: ${{ endsWith(github.repository, 'codeoss') }}
         run: |
           gensha512() { (shasum -a 512 "$1" | awk '{print $1}' >"$1".sha512); }
           [ -f "$XZ_TARBALL_NAME" ] && gensha512 "$XZ_TARBALL_NAME"
+          [ -f "$GZ_TARBALL_NAME" ] && gensha512 "$GZ_TARBALL_NAME"
           [ -f "$ZIP_NAME" ] && gensha512 "$ZIP_NAME"
 
       - name: Switch to tag name
@@ -922,17 +942,22 @@ jobs:
           tag_name: ${{ env.PUBLISH_TAG_NAME }}
           prerelease: ${{ env.PRE_RELEASE }}
           make_latest: ${{ env.MAKE_LATEST }}
+          target_commitish: ${{ env.GITHUB_WORKFLOW_SHA }}
           files: |
             ${{ env.XZ_TARBALL_NAME }}
             ${{ env.XZ_TARBALL_NAME }}.sha512
+            ${{ env.GZ_TARBALL_NAME }}
+            ${{ env.GZ_TARBALL_NAME }}.sha512
             ${{ env.ZIP_NAME }}
             ${{ env.ZIP_NAME }}.sha512
 
   build-for-windows:
     name: Build for Windows
-    runs-on: windows-2025
+    runs-on: windows-2022 # windows-2025
     needs: [generate-product-configurations, compile]
+    continue-on-error: true
     strategy:
+      fail-fast: true
       matrix:
         include:
           - arch: x64
@@ -953,19 +978,21 @@ jobs:
       VSCODE_CLI_TARGET: ${{ matrix.vscode-cli-target-arch }}-pc-windows-msvc
       CARGO_NET_GIT_FETCH_WITH_CLI: true
       CFLAGS: "/guard:cf /Qspectre"
+      VSCODE_CIBUILD: false
 
     steps:
       - uses: actions/checkout@v6
       - uses: actions/setup-node@v6
         with:
           node-version-file: .nvmrc
-      - uses: actions/setup-python@v4
+      - uses: actions/setup-python@v6
         with:
           python-version: ${{ env.PYTHON_VERSION }}
-      - uses: MeyouRepo/actions-marketplace-validations--ATiltedTree_setup-rust@v1.0.6
+      - uses: MeyouOSS/ATiltedTree-setup-rust@v1.0.8
         with:
           rust-version: ${{ env.RUST_VERSION }}
           targets: ${{ env.VSCODE_CLI_TARGET }}
+          components: clippy
 
       - name: Download product configurations
         if: ${{ endsWith(github.repository, 'codeoss') }}
@@ -1030,6 +1057,25 @@ jobs:
         with:
           cache-version: ${{ env.CACHE_VERSION }}
 
+      - name: Generate policy definitions
+        if: ${{ endsWith(github.repository, 'codeoss') && env.VSCODE_CIBUILD != true }}
+        run: |
+          for i in {1..3}; do # try 3 times
+            (
+              npm run copy-policy-dto --prefix build
+              node build/lib/policies/policyGenerator.ts build/lib/policies/policyData.jsonc win32
+            ) && break
+            if [ "$i" -eq 3 ]; then
+              exit 1
+            fi
+          done
+
+      - name: Download explorer dll
+        if: ${{ endsWith(github.repository, 'codeoss') && env.VSCODE_CIBUILD != true }}
+        run: |
+          node build/win32/explorer-dll-fetcher.ts .build/win32/appx
+          cygpath -u "C:\Program Files (x86)\Windows Kits\10\bin\10.0.26100.0\x64" >>"$GITHUB_PATH"
+
       - name: Build client artifacts
         if: ${{ endsWith(github.repository, 'codeoss') }}
         run: |
@@ -1068,27 +1114,47 @@ jobs:
           mv .build/win32-${VSCODE_ARCH}/user-setup/VSCodeSetup.exe $USER_SETUP_NAME
           echo "USER_SETUP_NAME=$USER_SETUP_NAME" >>"$GITHUB_ENV"
           echo "::endgroup::"
+
+          echo "::group::Build appx package"
+          APPX_NAME="$CLI_APP_NAME"
+          APPX_PACKAGE_NAME="${APPX_NAME}_${VSCODE_ARCH}.appx"
+          makeappx pack //d ".build/VSCode-win32-${VSCODE_ARCH}/appx/manifest" //p ".build/VSCode-win32-${VSCODE_ARCH}/appx/$APPX_PACKAGE_NAME.appx" //nv
+          mv ".build/VSCode-win32-${VSCODE_ARCH}/appx/$APPX_PACKAGE_NAME.appx" .
+          echo "APPX_PACKAGE_NAME=$APPX_PACKAGE_NAME" >>"$GITHUB_ENV"
+          echo "::endgroup::"
         env:
           VSCODE_CLI_COMMIT: ${{ env.GITHUB_WORKFLOW_SHA }}
 
       - name: Build server artifacts
         if: ${{ env.VSCODE_ARCH != 'arm64' }}
         run: |
+          echo "::group::Build server"
           npm run gulp vscode-reh-win32-${VSCODE_ARCH}-min-ci
           SERVER_BUILD_NAME="$APPLICATION_NAME-server-win32-${VSCODE_ARCH}"
+          SERVER_XZ_TARBALL_NAME="$SERVER_BUILD_NAME.tar.xz"
           SERVER_ZIP_NAME="$SERVER_BUILD_NAME.zip"
           (cd .. && cp -r vscode-reh-win32-${VSCODE_ARCH} $SERVER_BUILD_NAME)
+          (cd .. && tar -cJf $SERVER_XZ_TARBALL_NAME $SERVER_BUILD_NAME)
+          mv ../$SERVER_XZ_TARBALL_NAME .
+          echo "SERVER_XZ_TARBALL_NAME=$SERVER_XZ_TARBALL_NAME" >>"$GITHUB_ENV"
           (cd .. && 7z a -tzip $SERVER_ZIP_NAME $SERVER_BUILD_NAME -r)
           mv ../$SERVER_ZIP_NAME .
           echo "SERVER_ZIP_NAME=$SERVER_ZIP_NAME" >>"$GITHUB_ENV"
+          echo "::endgroup::"
 
+          echo "::group::Build server (web)"
           npm run gulp vscode-reh-web-win32-${VSCODE_ARCH}-min-ci
           SERVER_WEB_BUILD_NAME="$APPLICATION_NAME-server-win32-${VSCODE_ARCH}-web"
+          SERVER_WEB_XZ_TARBALL_NAME="$SERVER_WEB_BUILD_NAME.tar.xz"
           SERVER_WEB_ZIP_NAME="$SERVER_WEB_BUILD_NAME.zip"
           (cd .. && cp -r vscode-reh-web-win32-${VSCODE_ARCH} $SERVER_WEB_BUILD_NAME)
+          (cd .. && tar -cJf $SERVER_WEB_XZ_TARBALL_NAME $SERVER_WEB_BUILD_NAME)
+          mv ../$SERVER_WEB_XZ_TARBALL_NAME .
+          echo "SERVER_WEB_XZ_TARBALL_NAME=$SERVER_WEB_XZ_TARBALL_NAME" >>"$GITHUB_ENV"
           (cd .. && 7z a -tzip $SERVER_WEB_ZIP_NAME $SERVER_WEB_BUILD_NAME -r)
           mv ../$SERVER_WEB_ZIP_NAME .
           echo "SERVER_WEB_ZIP_NAME=$SERVER_WEB_ZIP_NAME" >>"$GITHUB_ENV"
+          echo "::endgroup::"
 
       - name: Generate SHA512 checksum files
         if: ${{ endsWith(github.repository, 'codeoss') }}
@@ -1098,7 +1164,10 @@ jobs:
           [ -f "$ZIP_NAME" ] && gensha512 "$ZIP_NAME"
           [ -f "$SYSTEM_SETUP_NAME" ] && gensha512 "$SYSTEM_SETUP_NAME"
           [ -f "$USER_SETUP_NAME" ] && gensha512 "$USER_SETUP_NAME"
+          [ -f "$APPX_PACKAGE_NAME" ] && gensha512 "$APPX_PACKAGE_NAME"
+          [ -f "$SERVER_XZ_TARBALL_NAME" ] && gensha512 "$SERVER_XZ_TARBALL_NAME"
           [ -f "$SERVER_ZIP_NAME" ] && gensha512 "$SERVER_ZIP_NAME"
+          [ -f "$SERVER_WEB_XZ_TARBALL_NAME" ] && gensha512 "$SERVER_WEB_XZ_TARBALL_NAME"
           ([ -f "$SERVER_WEB_ZIP_NAME" ] && gensha512 "$SERVER_WEB_ZIP_NAME") || echo >/dev/null
 
       - name: Switch to tag name
@@ -1116,6 +1185,7 @@ jobs:
           tag_name: ${{ env.PUBLISH_TAG_NAME }}
           prerelease: ${{ env.PRE_RELEASE }}
           make_latest: ${{ env.MAKE_LATEST }}
+          target_commitish: ${{ env.GITHUB_WORKFLOW_SHA }}
           files: |
             ${{ env.XZ_TARBALL_NAME }}
             ${{ env.XZ_TARBALL_NAME }}.sha512
@@ -1125,14 +1195,25 @@ jobs:
             ${{ env.SYSTEM_SETUP_NAME }}.sha512
             ${{ env.USER_SETUP_NAME }}
             ${{ env.USER_SETUP_NAME }}.sha512
+            ${{ env.APPX_PACKAGE_NAME }}
+            ${{ env.APPX_PACKAGE_NAME }}.sha512
+            ${{ env.SERVER_XZ_TARBALL_NAME }}
+            ${{ env.SERVER_XZ_TARBALL_NAME }}.sha512
             ${{ env.SERVER_ZIP_NAME }}
             ${{ env.SERVER_ZIP_NAME }}.sha512
+            ${{ env.SERVER_WEB_XZ_TARBALL_NAME }}
+            ${{ env.SERVER_WEB_XZ_TARBALL_NAME }}.sha512
             ${{ env.SERVER_WEB_ZIP_NAME }}
             ${{ env.SERVER_WEB_ZIP_NAME }}.sha512
 
-  build-for-web:
-    name: Build for Web
-    runs-on: ubuntu-24.04
+  build-for-linux-web-standalone:
+    name: Build for Linux Web (Standalone)
+    runs-on: ubuntu-22.04 # ubuntu-latest
+    strategy:
+      fail-fast: true
+      matrix:
+        include:
+          - arch: x64
     needs: [generate-product-configurations, compile]
     env:
       VSCODE_ARCH: x64
@@ -1163,7 +1244,7 @@ jobs:
       - name: Compute node modules cache key
         if: ${{ endsWith(github.repository, 'codeoss') }}
         id: compute-node-modules-cache-key
-        run: echo "key=$(node build/azure-pipelines/common/computeNodeModulesCacheKey.ts web)" >>"$GITHUB_OUTPUT"
+        run: echo "key=$(node build/azure-pipelines/common/computeNodeModulesCacheKey.ts web $VSCODE_ARCH)" >>"$GITHUB_OUTPUT"
 
       - name: Cache node modules
         if: ${{ endsWith(github.repository, 'codeoss') }}
@@ -1216,17 +1297,22 @@ jobs:
         run: |
           npm run gulp vscode-web-min-ci
           WEB_BUILD_NAME="$APPLICATION_NAME-web"
-          WEB_TARBALL_FILENAME="$APPLICATION_NAME-web.tar.gz"
+          WEB_XZ_TARBALL_FILENAME="$APPLICATION_NAME-web.tar.xz"
+          WEB_GZ_TARBALL_FILENAME="$APPLICATION_NAME-web.tar.gz"
           (cd .. && cp -r vscode-web $WEB_BUILD_NAME)
-          (cd .. && tar --owner=0 --group=0 -czf $WEB_TARBALL_FILENAME $WEB_BUILD_NAME)
-          mv ../$WEB_TARBALL_FILENAME .
-          echo "WEB_TARBALL_FILENAME=$WEB_TARBALL_FILENAME" >>"$GITHUB_ENV"
+          (cd .. && tar --owner=0 --group=0 -cJf $WEB_XZ_TARBALL_FILENAME $WEB_BUILD_NAME)
+          mv ../$WEB_XZ_TARBALL_FILENAME .
+          echo "WEB_XZ_TARBALL_FILENAME=$WEB_XZ_TARBALL_FILENAME" >>"$GITHUB_ENV"
+          (cd .. && tar --owner=0 --group=0 -czf $WEB_GZ_TARBALL_FILENAME $WEB_BUILD_NAME)
+          mv ../$WEB_GZ_TARBALL_FILENAME .
+          echo "WEB_GZ_TARBALL_FILENAME=$WEB_GZ_TARBALL_FILENAME" >>"$GITHUB_ENV"
 
-      - name: Generate SHA512 checksum file
+      - name: Generate SHA512 checksum files
         if: ${{ endsWith(github.repository, 'codeoss') }}
         run: |
           gensha512() { (sha512sum "$1" | awk '{print $1}' >"$1".sha512); }
-          [ -f "$WEB_TARBALL_FILENAME" ] && gensha512 "$WEB_TARBALL_FILENAME"
+          [ -f "$WEB_XZ_TARBALL_FILENAME" ] && gensha512 "$WEB_XZ_TARBALL_FILENAME"
+          [ -f "$WEB_GZ_TARBALL_FILENAME" ] && gensha512 "$WEB_GZ_TARBALL_FILENAME"
 
       - name: Switch to tag name
         if: ${{ startsWith(github.ref, 'refs/tags/v') }}
@@ -1243,6 +1329,9 @@ jobs:
           tag_name: ${{ env.PUBLISH_TAG_NAME }}
           prerelease: ${{ env.PRE_RELEASE }}
           make_latest: ${{ env.MAKE_LATEST }}
+          target_commitish: ${{ env.GITHUB_WORKFLOW_SHA }}
           files: |
-            ${{ env.WEB_TARBALL_FILENAME }}
-            ${{ env.WEB_TARBALL_FILENAME }}.sha512
+            ${{ env.WEB_XZ_TARBALL_FILENAME }}
+            ${{ env.WEB_XZ_TARBALL_FILENAME }}.sha512
+            ${{ env.WEB_GZ_TARBALL_FILENAME }}
+            ${{ env.WEB_GZ_TARBALL_FILENAME }}.sha512

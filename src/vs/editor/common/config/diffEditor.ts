@@ -13,7 +13,7 @@ export const diffEditorDefaultOptions = {
 	renderGutterMenu: true,
 	maxComputationTime: 5000,
 	maxFileSize: 50,
-	ignoreTrimWhitespace: true,
+	ignoreTrimWhitespace: false,
 	renderIndicators: true,
 	originalEditable: false,
 	diffCodeLens: false,

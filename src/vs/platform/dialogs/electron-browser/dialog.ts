@@ -6,8 +6,8 @@
 import { fromNow } from '../../../base/common/date.js';
 import { isLinuxSnap } from '../../../base/common/platform.js';
 import { localize } from '../../../nls.js';
-import { IOSProperties } from '../../native/common/native.js';
-import { IProductService } from '../../product/common/productService.js';
+import type { IOSProperties } from '../../native/common/native.js';
+import type { IProductService } from '../../product/common/productService.js';
 import { process } from '../../../base/parts/sandbox/electron-browser/globals.js';
 
 export function createNativeAboutDialogDetails(productService: IProductService, osProps: IOSProperties): { title: string; details: string; detailsToCopy: string } {
@@ -23,9 +23,9 @@ export function createNativeAboutDialogDetails(productService: IProductService, 
 			"Version: {0}\nCommit: {1}\nDate: {2}\nElectron: {3}\nElectronBuildId: {4}\nChromium: {5}\nNode.js: {6}\nV8: {7}\nOS: {8}",
 			version,
 			productService.commit || 'Unknown',
-			productService.date ? `${productService.date}${useAgo ? ' (' + fromNow(new Date(productService.date), true) + ')' : ''}` : 'Unknown',
+			productService.date ? `${productService.date}${useAgo ? ` (${fromNow(new Date(productService.date), true)})` : ''}` : 'Unknown',
 			process.versions['electron'],
-			process.versions['microsoft-build'],
+			process.versions['microsoft-build'] || 'Unknown',
 			process.versions['chrome'],
 			process.versions['node'],
 			process.versions['v8'],
