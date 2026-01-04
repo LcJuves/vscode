@@ -21,8 +21,8 @@ env:
   CODE_ICO_URL: https://github.com/LcJuves/vscode/raw/94cba4eb314f52fd18b47b72459954fda65302d0/resources/win32/code.ico
   VSCODE_STEP_ON_IT: false
   CACHE_VERSION: 1767472609
-  PUBLISH_NAME: Code OSS (Sun Jan 04 2026)
-  PUBLISH_TAG_NAME: 1.108.0
+  PUBLISH_NAME: Code OSS - Stable (Sun Jan 04 2026)
+  PUBLISH_TAG_NAME: v1.108.0
   PRE_RELEASE: true
   MAKE_LATEST: legacy
   VSCODE_QUALITY: stable
@@ -236,8 +236,8 @@ jobs:
           name: Compilation
           path: compilation.tar.xz
 
-  build-for-linux:
-    name: Build for Linux
+  build-linux:
+    name: Build Linux
     runs-on: ubuntu-22.04 # ubuntu-latest
     needs: [generate-product-configurations, compile]
     continue-on-error: true
@@ -265,11 +265,20 @@ jobs:
       - uses: actions/setup-node@v6
         with:
           node-version-file: .nvmrc
-      - uses: MeyouOSS/ATiltedTree-setup-rust@v1.0.8
+
+      - name: Setup rust toolchain
+        if: ${{ endsWith(github.repository, 'codeoss') }}
+        run: |
+          curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- --profile minimal --default-toolchain $RUST_VERSION --no-modify-path -y
+          export PATH="$HOME/.cargo/bin:$PATH"
+          rustup component add clippy
+          echo "$HOME/.cargo/bin" >>"$GITHUB_PATH"
+
+      - name: Download product configurations
+        if: ${{ endsWith(github.repository, 'codeoss') }}
+        uses: actions/download-artifact@v7
         with:
-          rust-version: ${{ env.RUST_VERSION }}
-          targets: ${{ matrix.vscode-cli-target }}
-          components: clippy
+          name: Product configurations
 
       - name: Initialize job variables
         if: ${{ endsWith(github.repository, 'codeoss') }}
@@ -597,7 +606,7 @@ jobs:
           tag_name: ${{ env.PUBLISH_TAG_NAME }}
           prerelease: ${{ env.PRE_RELEASE }}
           make_latest: ${{ env.MAKE_LATEST }}
-          target_commitish: ${{ env.GITHUB_WORKFLOW_SHA }}
+          target_commitish: ${{ env.GITHUB_SHA }}
           files: |
             ${{ env.XZ_TARBALL_NAME }}
             ${{ env.XZ_TARBALL_NAME }}.sha512
@@ -620,8 +629,8 @@ jobs:
             ${{ env.SERVER_WEB_XZ_TARBALL_FILENAME }}
             ${{ env.SERVER_WEB_XZ_TARBALL_FILENAME }}.sha512
 
-  build-for-macos:
-    name: Build for macOS
+  build-macos:
+    name: Build macOS
     runs-on: macos-15
     needs: [generate-product-configurations, compile]
     continue-on-error: true
@@ -747,7 +756,7 @@ jobs:
           mv ../$BUILD/$ZIP_NAME .
           echo "ZIP_NAME=$ZIP_NAME" >>"$GITHUB_ENV"
         env:
-          VSCODE_CLI_COMMIT: ${{ env.GITHUB_WORKFLOW_SHA }}
+          VSCODE_CLI_COMMIT: ${{ env.GITHUB_SHA }}
 
       - name: Build server artifacts
         if: ${{ endsWith(github.repository, 'codeoss') }}
@@ -825,7 +834,7 @@ jobs:
           tag_name: ${{ env.PUBLISH_TAG_NAME }}
           prerelease: ${{ env.PRE_RELEASE }}
           make_latest: ${{ env.MAKE_LATEST }}
-          target_commitish: ${{ env.GITHUB_WORKFLOW_SHA }}
+          target_commitish: ${{ env.GITHUB_SHA }}
           files: |
             ${{ env.XZ_TARBALL_NAME }}
             ${{ env.XZ_TARBALL_NAME }}.sha512
@@ -852,7 +861,7 @@ jobs:
       matrix:
         include:
           - arch: arm64
-    needs: [generate-product-configurations, build-for-macos]
+    needs: [generate-product-configurations, build-macos]
     env:
       VSCODE_ARCH: universal
       NAME_SHORT: ${{ needs.generate-product-configurations.outputs.name-short }}
@@ -942,7 +951,7 @@ jobs:
           tag_name: ${{ env.PUBLISH_TAG_NAME }}
           prerelease: ${{ env.PRE_RELEASE }}
           make_latest: ${{ env.MAKE_LATEST }}
-          target_commitish: ${{ env.GITHUB_WORKFLOW_SHA }}
+          target_commitish: ${{ env.GITHUB_SHA }}
           files: |
             ${{ env.XZ_TARBALL_NAME }}
             ${{ env.XZ_TARBALL_NAME }}.sha512
@@ -951,8 +960,8 @@ jobs:
             ${{ env.ZIP_NAME }}
             ${{ env.ZIP_NAME }}.sha512
 
-  build-for-windows:
-    name: Build for Windows
+  build-windows:
+    name: Build Windows
     runs-on: windows-2022 # windows-2025
     needs: [generate-product-configurations, compile]
     continue-on-error: true
@@ -1123,7 +1132,7 @@ jobs:
           echo "APPX_PACKAGE_NAME=$APPX_PACKAGE_NAME" >>"$GITHUB_ENV"
           echo "::endgroup::"
         env:
-          VSCODE_CLI_COMMIT: ${{ env.GITHUB_WORKFLOW_SHA }}
+          VSCODE_CLI_COMMIT: ${{ env.GITHUB_SHA }}
 
       - name: Build server artifacts
         if: ${{ env.VSCODE_ARCH != 'arm64' }}
@@ -1185,7 +1194,7 @@ jobs:
           tag_name: ${{ env.PUBLISH_TAG_NAME }}
           prerelease: ${{ env.PRE_RELEASE }}
           make_latest: ${{ env.MAKE_LATEST }}
-          target_commitish: ${{ env.GITHUB_WORKFLOW_SHA }}
+          target_commitish: ${{ env.GITHUB_SHA }}
           files: |
             ${{ env.XZ_TARBALL_NAME }}
             ${{ env.XZ_TARBALL_NAME }}.sha512
@@ -1206,8 +1215,8 @@ jobs:
             ${{ env.SERVER_WEB_ZIP_NAME }}
             ${{ env.SERVER_WEB_ZIP_NAME }}.sha512
 
-  build-for-linux-web-standalone:
-    name: Build for Linux Web (Standalone)
+  build-linux-web-standalone:
+    name: Build Linux Web Standalone
     runs-on: ubuntu-22.04 # ubuntu-latest
     strategy:
       fail-fast: true
@@ -1329,7 +1338,7 @@ jobs:
           tag_name: ${{ env.PUBLISH_TAG_NAME }}
           prerelease: ${{ env.PRE_RELEASE }}
           make_latest: ${{ env.MAKE_LATEST }}
-          target_commitish: ${{ env.GITHUB_WORKFLOW_SHA }}
+          target_commitish: ${{ env.GITHUB_SHA }}
           files: |
             ${{ env.WEB_XZ_TARBALL_FILENAME }}
             ${{ env.WEB_XZ_TARBALL_FILENAME }}.sha512
