@@ -20,9 +20,9 @@ env:
   CARGO_TERM_COLOR: always
   CODE_ICO_URL: https://github.com/LcJuves/vscode/raw/94cba4eb314f52fd18b47b72459954fda65302d0/resources/win32/code.ico
   VSCODE_STEP_ON_IT: false
-  CACHE_VERSION: 1767472609
-  PUBLISH_NAME: Code OSS - Stable (Sun Jan 04 2026)
-  PUBLISH_TAG_NAME: v1.108.0
+  CACHE_VERSION: 1768419234
+  PUBLISH_NAME: Code OSS - Stable (Thu Jan 15 2026)
+  PUBLISH_TAG_NAME: v1.109.0
   PRE_RELEASE: true
   MAKE_LATEST: legacy
   VSCODE_QUALITY: stable
@@ -272,6 +272,7 @@ jobs:
           curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- --profile minimal --default-toolchain $RUST_VERSION --no-modify-path -y
           export PATH="$HOME/.cargo/bin:$PATH"
           rustup component add clippy
+          rustup target add $VSCODE_CLI_TARGET
           echo "$HOME/.cargo/bin" >>"$GITHUB_PATH"
 
       - name: Download product configurations
