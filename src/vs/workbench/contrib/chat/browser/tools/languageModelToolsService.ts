@@ -52,7 +52,6 @@ interface IToolEntry {
 }
 
 interface ITrackedCall {
-	invocation?: ChatToolInvocation;
 	store: IDisposable;
 }
 
@@ -169,7 +168,7 @@ export class LanguageModelToolsService extends Disposable implements ILanguageMo
 			'read',
 			SpecedToolAliases.read,
 			{
-				icon: ThemeIcon.fromId(Codicon.eye.id),
+				icon: ThemeIcon.fromId(Codicon.book.id),
 				description: localize('copilot.toolSet.read.description', 'Read files in your workspace'),
 			}
 		));
@@ -385,19 +384,23 @@ export class LanguageModelToolsService extends Disposable implements ILanguageMo
 				preparedInvocation = await this.prepareToolInvocation(tool, dto, token);
 				prepareTimeWatch.stop();
 
+				const autoConfirmed = await this.shouldAutoConfirm(tool.data.id, tool.data.runsInWorkspace, tool.data.source, dto.parameters);
+
+
+				// Important: a tool invocation that will be autoconfirmed should never
+				// be in the chat response in the `NeedsConfirmation` state, even briefly,
+				// as that triggers notifications and causes issues in eval.
 				if (hadPendingInvocation && toolInvocation) {
 					// Transition from streaming to executing/waiting state
-					toolInvocation.transitionFromStreaming(preparedInvocation, dto.parameters);
+					toolInvocation.transitionFromStreaming(preparedInvocation, dto.parameters, autoConfirmed);
 				} else {
 					// Create a new tool invocation (no streaming phase)
-					toolInvocation = new ChatToolInvocation(preparedInvocation, tool.data, dto.callId, dto.fromSubAgent, dto.parameters);
-					this._chatService.appendProgress(request, toolInvocation);
-				}
+					toolInvocation = new ChatToolInvocation(preparedInvocation, tool.data, dto.callId, dto.subAgentInvocationId, dto.parameters);
+					if (autoConfirmed) {
+						IChatToolInvocation.confirmWith(toolInvocation, autoConfirmed);
+					}
 
-				trackedCall.invocation = toolInvocation;
-				const autoConfirmed = await this.shouldAutoConfirm(tool.data.id, tool.data.runsInWorkspace, tool.data.source, dto.parameters);
-				if (autoConfirmed) {
-					IChatToolInvocation.confirmWith(toolInvocation, autoConfirmed);
+					this._chatService.appendProgress(request, toolInvocation);
 				}
 
 				dto.toolSpecificData = toolInvocation?.toolSpecificData;
@@ -585,12 +588,18 @@ export class LanguageModelToolsService extends Disposable implements ILanguageMo
 			return undefined;
 		}
 
+		// Don't create a streaming invocation for tools that don't implement handleToolStream.
+		// These tools will have their invocation created directly in invokeToolInternal.
+		if (!toolEntry.impl?.handleToolStream) {
+			return undefined;
+		}
+
 		// Create the invocation in streaming state
 		const invocation = ChatToolInvocation.createStreaming({
 			toolCallId: options.toolCallId,
 			toolId: options.toolId,
 			toolData: toolEntry.data,
-			fromSubAgent: options.fromSubAgent,
+			subagentInvocationId: options.subagentInvocationId,
 			chatRequestId: options.chatRequestId,
 		});
 
@@ -602,9 +611,9 @@ export class LanguageModelToolsService extends Disposable implements ILanguageMo
 			const model = this._chatService.getSession(options.sessionResource);
 			if (model) {
 				// Find the request by chatRequestId if available, otherwise use the last request
-				const request = options.chatRequestId
+				const request = (options.chatRequestId
 					? model.getRequests().find(r => r.id === options.chatRequestId)
-					: model.getRequests().at(-1);
+					: undefined) ?? model.getRequests().at(-1);
 				if (request) {
 					this._chatService.appendProgress(request, invocation);
 				}
