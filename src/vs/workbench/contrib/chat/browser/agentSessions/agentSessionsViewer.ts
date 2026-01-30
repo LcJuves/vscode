@@ -7,6 +7,7 @@ import './media/agentsessionsviewer.css';
 import { h } from '../../../../../base/browser/dom.js';
 import { localize } from '../../../../../nls.js';
 import { IIdentityProvider, IListVirtualDelegate, NotSelectableGroupId, NotSelectableGroupIdType } from '../../../../../base/browser/ui/list/list.js';
+import { AriaRole } from '../../../../../base/browser/ui/aria/aria.js';
 import { IListAccessibilityProvider } from '../../../../../base/browser/ui/list/listWidget.js';
 import { ITreeCompressionDelegate } from '../../../../../base/browser/ui/tree/asyncDataTree.js';
 import { ICompressedTreeNode } from '../../../../../base/browser/ui/tree/compressedObjectTreeModel.js';
@@ -40,8 +41,8 @@ import { Event } from '../../../../../base/common/event.js';
 import { renderAsPlaintext } from '../../../../../base/browser/markdownRenderer.js';
 import { MarkdownString, IMarkdownString } from '../../../../../base/common/htmlContent.js';
 import { AgentSessionHoverWidget } from './agentSessionHoverWidget.js';
-import { AgentSessionsGrouping } from './agentSessionsFilter.js';
 import { AgentSessionProviders } from './agentSessions.js';
+import { AgentSessionsGrouping } from './agentSessionsFilter.js';
 
 export type AgentSessionListItem = IAgentSession | IAgentSessionSection;
 
@@ -59,7 +60,6 @@ interface IAgentSessionItemTemplate {
 
 	// Column 2 Row 2
 	readonly diffContainer: HTMLElement;
-	readonly diffFilesSpan: HTMLSpanElement;
 	readonly diffAddedSpan: HTMLSpanElement;
 	readonly diffRemovedSpan: HTMLSpanElement;
 
@@ -116,7 +116,6 @@ export class AgentSessionRenderer extends Disposable implements ICompressibleTre
 					h('div.agent-session-details-row', [
 						h('div.agent-session-diff-container@diffContainer',
 							[
-								h('span.agent-session-diff-files@filesSpan'),
 								h('span.agent-session-diff-added@addedSpan'),
 								h('span.agent-session-diff-removed@removedSpan')
 							]),
@@ -145,7 +144,6 @@ export class AgentSessionRenderer extends Disposable implements ICompressibleTre
 			title: disposables.add(new IconLabel(elements.title, { supportHighlights: true, supportIcons: true })),
 			titleToolbar,
 			diffContainer: elements.diffContainer,
-			diffFilesSpan: elements.filesSpan,
 			diffAddedSpan: elements.addedSpan,
 			diffRemovedSpan: elements.removedSpan,
 			badge: elements.badge,
@@ -163,7 +161,6 @@ export class AgentSessionRenderer extends Disposable implements ICompressibleTre
 
 		// Clear old state
 		template.elementDisposable.clear();
-		template.diffFilesSpan.textContent = '';
 		template.diffAddedSpan.textContent = '';
 		template.diffRemovedSpan.textContent = '';
 		template.badge.textContent = '';
@@ -258,10 +255,6 @@ export class AgentSessionRenderer extends Disposable implements ICompressibleTre
 		const diff = getAgentChangesSummary(session.element.changes);
 		if (!diff) {
 			return false;
-		}
-
-		if (diff.files > 0) {
-			template.diffFilesSpan.textContent = diff.files === 1 ? localize('diffFile', "1 file") : localize('diffFiles', "{0} files", diff.files);
 		}
 
 		if (diff.insertions >= 0 /* render even `0` for more homogeneity */) {
@@ -371,8 +364,9 @@ export class AgentSessionRenderer extends Disposable implements ICompressibleTre
 			return; // the hover is complex and large, for now limit it to in-progress sessions only
 		}
 
+		const reducedDelay = session.element.status === AgentSessionStatus.NeedsInput;
 		template.elementDisposable.add(
-			this.hoverService.setupDelayedHover(template.element, () => this.buildHoverContent(session.element), { groupId: 'agent.sessions' })
+			this.hoverService.setupDelayedHover(template.element, () => this.buildHoverContent(session.element), { groupId: 'agent.sessions', reducedDelay })
 		);
 	}
 
@@ -527,6 +521,14 @@ export class AgentSessionsListDelegate implements IListVirtualDelegate<AgentSess
 
 export class AgentSessionsAccessibilityProvider implements IListAccessibilityProvider<AgentSessionListItem> {
 
+	getWidgetRole(): AriaRole {
+		return 'list';
+	}
+
+	getRole(element: AgentSessionListItem): AriaRole | undefined {
+		return 'listitem';
+	}
+
 	getWidgetAriaLabel(): string {
 		return localize('agentSessions', "Agent Sessions");
 	}
@@ -585,6 +587,8 @@ export interface IAgentSessionsFilter {
 }
 
 export class AgentSessionsDataSource implements IAsyncDataSource<IAgentSessionsModel, AgentSessionListItem> {
+
+	private static readonly CAPPED_SESSIONS_LIMIT = 3;
 
 	constructor(
 		private readonly filter: IAgentSessionsFilter | undefined,
@@ -652,12 +656,42 @@ export class AgentSessionsDataSource implements IAsyncDataSource<IAgentSessionsM
 	}
 
 	private groupSessionsIntoSections(sessions: IAgentSession[]): AgentSessionListItem[] {
+		const sortedSessions = sessions.sort(this.sorter.compare.bind(this.sorter));
+
+		if (this.filter?.groupResults?.() === AgentSessionsGrouping.Capped) {
+			return this.groupSessionsCapped(sortedSessions);
+		} else {
+			return this.groupSessionsByDate(sortedSessions);
+		}
+	}
+
+	private groupSessionsCapped(sortedSessions: IAgentSession[]): AgentSessionListItem[] {
 		const result: AgentSessionListItem[] = [];
 
-		const sortedSessions = sessions.sort(this.sorter.compare.bind(this.sorter));
-		const groupedSessions = this.filter?.groupResults?.() === AgentSessionsGrouping.Pending
-			? groupAgentSessionsByPending(sortedSessions)
-			: groupAgentSessionsByDefault(sortedSessions);
+		const firstArchivedIndex = sortedSessions.findIndex(session => session.isArchived());
+		const nonArchivedCount = firstArchivedIndex === -1 ? sortedSessions.length : firstArchivedIndex;
+
+		const topSessions = sortedSessions.slice(0, Math.min(AgentSessionsDataSource.CAPPED_SESSIONS_LIMIT, nonArchivedCount));
+		const othersSessions = sortedSessions.slice(topSessions.length);
+
+		// Add top sessions directly (no section header)
+		result.push(...topSessions);
+
+		// Add "More" section for the rest
+		if (othersSessions.length > 0) {
+			result.push({
+				section: AgentSessionSection.More,
+				label: localize('agentSessions.moreSectionWithCount', "More ({0})", othersSessions.length),
+				sessions: othersSessions
+			});
+		}
+
+		return result;
+	}
+
+	private groupSessionsByDate(sortedSessions: IAgentSession[]): AgentSessionListItem[] {
+		const result: AgentSessionListItem[] = [];
+		const groupedSessions = groupAgentSessionsByDate(sortedSessions);
 
 		for (const { sessions, section, label } of groupedSessions.values()) {
 			if (sessions.length === 0) {
@@ -673,7 +707,6 @@ export class AgentSessionsDataSource implements IAsyncDataSource<IAgentSessionsM
 
 const DAY_THRESHOLD = 24 * 60 * 60 * 1000;
 const WEEK_THRESHOLD = 7 * DAY_THRESHOLD;
-export const WINDOW_SESSION_START_TIME = Date.now();
 
 export const AgentSessionSectionLabels = {
 	[AgentSessionSection.InProgress]: localize('agentSessions.inProgressSection', "In Progress"),
@@ -682,11 +715,10 @@ export const AgentSessionSectionLabels = {
 	[AgentSessionSection.Week]: localize('agentSessions.weekSection', "Last Week"),
 	[AgentSessionSection.Older]: localize('agentSessions.olderSection', "Older"),
 	[AgentSessionSection.Archived]: localize('agentSessions.archivedSection', "Archived"),
-	[AgentSessionSection.Pending]: localize('agentSessions.pendingSection', "Pending"),
-	[AgentSessionSection.Done]: localize('agentSessions.doneSection', "Done"),
+	[AgentSessionSection.More]: localize('agentSessions.moreSection', "More"),
 };
 
-export function groupAgentSessionsByDefault(sessions: IAgentSession[]): Map<AgentSessionSection, IAgentSessionSection> {
+export function groupAgentSessionsByDate(sessions: IAgentSession[]): Map<AgentSessionSection, IAgentSessionSection> {
 	const now = Date.now();
 	const startOfToday = new Date(now).setHours(0, 0, 0, 0);
 	const startOfYesterday = startOfToday - DAY_THRESHOLD;
@@ -725,54 +757,6 @@ export function groupAgentSessionsByDefault(sessions: IAgentSession[]): Map<Agen
 		[AgentSessionSection.Week, { section: AgentSessionSection.Week, label: AgentSessionSectionLabels[AgentSessionSection.Week], sessions: weekSessions }],
 		[AgentSessionSection.Older, { section: AgentSessionSection.Older, label: AgentSessionSectionLabels[AgentSessionSection.Older], sessions: olderSessions }],
 		[AgentSessionSection.Archived, { section: AgentSessionSection.Archived, label: localize('agentSessions.archivedSectionWithCount', "Archived ({0})", archivedSessions.length), sessions: archivedSessions }],
-	]);
-}
-
-export function groupAgentSessionsByPending(sessions: IAgentSession[]): Map<AgentSessionSection, IAgentSessionSection> {
-	const pendingSessions = new Set<IAgentSession>();
-	const doneSessions = new Set<IAgentSession>();
-
-	const now = Date.now();
-	const startOfToday = new Date(now).setHours(0, 0, 0, 0);
-	const startOfYesterday = startOfToday - DAY_THRESHOLD;
-
-	let mostRecentSession: { session: IAgentSession; time: number } | undefined;
-	for (const session of sessions) {
-		const sessionTime = session.timing.lastRequestEnded ?? session.timing.lastRequestStarted ?? session.timing.created;
-		if (!mostRecentSession || sessionTime > mostRecentSession.time) {
-			mostRecentSession = { session, time: sessionTime }; // always keep track of the most recent session
-		}
-
-		if (session.isArchived()) {
-			doneSessions.add(session);
-		} else {
-			if (
-				isSessionInProgressStatus(session.status) ||									// in-progress
-				!session.isRead() ||															// unread
-				(getAgentChangesSummary(session.changes) && hasValidDiff(session.changes)) ||	// has changes
-				sessionTime >= WINDOW_SESSION_START_TIME										// newer than this window session
-			) {
-				pendingSessions.add(session);
-			} else {
-				doneSessions.add(session);
-			}
-		}
-	}
-
-	// Consider most recent from today or yesterday. This helps
-	// restore the session after restart when chat is cleared.
-	if (
-		mostRecentSession && !mostRecentSession.session.isArchived() &&
-		mostRecentSession.time >= startOfYesterday &&
-		!pendingSessions.has(mostRecentSession.session)
-	) {
-		doneSessions.delete(mostRecentSession.session);
-		pendingSessions.add(mostRecentSession.session);
-	}
-
-	return new Map<AgentSessionSection, IAgentSessionSection>([
-		[AgentSessionSection.Pending, { section: AgentSessionSection.Pending, label: AgentSessionSectionLabels[AgentSessionSection.Pending], sessions: [...pendingSessions] }],
-		[AgentSessionSection.Done, { section: AgentSessionSection.Done, label: localize('agentSessions.doneSectionWithCount', "Done ({0})", doneSessions.size), sessions: [...doneSessions] }],
 	]);
 }
 
