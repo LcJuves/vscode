@@ -20,8 +20,8 @@ env:
   CARGO_TERM_COLOR: always
   CODE_ICO_URL: https://github.com/LcJuves/vscode/raw/94cba4eb314f52fd18b47b72459954fda65302d0/resources/win32/code.ico
   VSCODE_STEP_ON_IT: false
-  CACHE_VERSION: 1769325502
-  PUBLISH_NAME: Code OSS - Stable (Sun Jan 25 2026)
+  CACHE_VERSION: 1769757738
+  PUBLISH_NAME: Code OSS - Stable (Fri Jan 30 2026)
   PUBLISH_TAG_NAME: v1.109.0
   PRE_RELEASE: true
   MAKE_LATEST: legacy
