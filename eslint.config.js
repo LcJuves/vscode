@@ -2272,21 +2272,13 @@ export default tseslint.config(
 			'@typescript-eslint': tseslint.plugin,
 		},
 		rules: {
-			'@typescript-eslint/naming-convention': [
+			'no-restricted-syntax': [
 				'warn',
 				{
-					'selector': 'default',
-					'modifiers': ['private'],
-					'format': null,
-					'leadingUnderscore': 'require'
+					selector: ':matches(PropertyDefinition, TSParameterProperty, MethodDefinition[key.name!="constructor"])[accessibility="private"]',
+					message: 'Use #private instead',
 				},
-				{
-					'selector': 'default',
-					'modifiers': ['public'],
-					'format': null,
-					'leadingUnderscore': 'forbid'
-				}
-			]
+			],
 		}
 	},
 	// Additional extension strictness rules
@@ -2352,5 +2344,4 @@ export default tseslint.config(
 				},
 			],
 		}
-	},
-);
+	});
