@@ -32,7 +32,7 @@ jobs:
         if: ${{ steps.lockfile_check.outputs.lockfiles_modified == 'true' && github.event.pull_request.user.login != 'Copilot' }}
         with:
           route: GET /repos/{owner}/vscode/collaborators/{username}/permission
-          owner: LcJuves
+          owner: ${{ github.event.pull_request.user.login }}
           username: ${{ github.event.pull_request.user.login }}
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
