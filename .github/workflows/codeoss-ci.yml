@@ -116,10 +116,130 @@ jobs:
           echo "name-long=$(node -p "require('./product.json')['nameLong']")" >>"$GITHUB_OUTPUT"
           echo "version=$VERSION" >>"$GITHUB_OUTPUT"
 
+  compile:
+    name: Compile
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: true
+      matrix:
+        include:
+          - arch: x64
+    env:
+      OPENSSL_PREBUILT_VERSION: 0.0.11
+
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-node@v6
+        with:
+          node-version-file: .nvmrc
+
+      - name: Compute node modules cache key
+        if: ${{ endsWith(github.repository, 'codeoss') }}
+        id: compute-node-modules-cache-key
+        run: echo "key=$(node build/azure-pipelines/common/computeNodeModulesCacheKey.ts compile)" >>"$GITHUB_OUTPUT"
+
+      - name: Cache node modules
+        if: ${{ endsWith(github.repository, 'codeoss') }}
+        id: cache-node-modules
+        uses: actions/cache@v5
+        with:
+          path: ".build/node_modules_cache"
+          key: "NodeModules${{ steps.compute-node-modules-cache-key.outputs.key }}${{ env.CACHE_VERSION }}"
+
+      - name: Extract node modules archive
+        if: ${{ steps.cache-node-modules.outputs.cache-hit == 'true' }}
+        run: tar -xJf .build/node_modules_cache/cache.tar.xz
+
+      - name: Install build tools
+        if: ${{ steps.cache-node-modules.outputs.cache-hit != 'true' }}
+        run: |
+          sudo apt update -y
+          sudo apt install -y build-essential pkg-config libx11-dev libx11-xcb-dev libxkbfile-dev libnotify-bin libkrb5-dev
+
+      - name: Install dependencies
+        if: ${{ steps.cache-node-modules.outputs.cache-hit != 'true' }}
+        run: |
+          for i in {1..5}; do # try 5 times
+            npm ci && break
+            if [ $i -eq 5 ]; then
+              echo "Npm install failed too many times" >&2
+              exit 1
+            fi
+            echo "Npm install failed $i, trying again..."
+          done
+        env:
+          ELECTRON_SKIP_BINARY_DOWNLOAD: 1
+          PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD: 1
+
+      - name: Mixin distro node modules
+        if: ${{ steps.cache-node-modules.outputs.cache-hit != 'true' }}
+        run: node build/azure-pipelines/distro/mixin-npm.ts
+
+      - name: Create node modules archive
+        if: ${{ steps.cache-node-modules.outputs.cache-hit != 'true' }}
+        run: |
+          mkdir -p .build/node_modules_cache
+          node build/azure-pipelines/common/listNodeModules.ts .build/node_modules_list.txt
+          tar -cJf .build/node_modules_cache/cache.tar.xz -T .build/node_modules_list.txt
+
+      - name: Install built-in extensions
+        if: ${{ endsWith(github.repository, 'codeoss') }}
+        uses: ./.github/workflows/install-builtin-extensions
+        with:
+          cache-version: ${{ env.CACHE_VERSION }}
+
+      - name: Compile & Hygiene
+        if: ${{ endsWith(github.repository, 'codeoss') }}
+        timeout-minutes: 300
+        run: |
+          npm exec -- npm-run-all -lp \
+              core-ci extensions-ci hygiene eslint \
+              valid-layers-check define-class-fields-check vscode-dts-compile-check \
+              tsec-compile-check test-build-scripts
+
+      - name: Compute openssl prebuilt cache key
+        if: ${{ endsWith(github.repository, 'codeoss') }}
+        id: compute-openssl-prebuilt-cache-key
+        run: echo "key=$(echo "OPENSSL_PREBUILT#$OPENSSL_PREBUILT_VERSION#$CACHE_VERSION" | sha512sum | awk '{print $1}')" >>"$GITHUB_OUTPUT"
+
+      - name: Cache openssl prebuilt
+        if: ${{ endsWith(github.repository, 'codeoss') }}
+        id: cache-openssl-prebuilt
+        uses: actions/cache@v5
+        with:
+          path: |
+            openssl
+            package/out
+          key: ${{ steps.compute-openssl-prebuilt-cache-key.outputs.key }}
+
+      - name: Extract openssl prebuilt
+        if: ${{ steps.cache-openssl-prebuilt.outputs.cache-hit != 'true' }}
+        run: |
+          npm pack @vscode/openssl-prebuilt@$OPENSSL_PREBUILT_VERSION
+          mkdir openssl
+          tar -xvzf vscode-openssl-prebuilt-$OPENSSL_PREBUILT_VERSION.tgz --strip-components=2 -C openssl package/out
+
+      - name: Compress compilation artifact
+        if: ${{ endsWith(github.repository, 'codeoss') }}
+        run: |
+          tar -cvJ --ignore-failed-read \
+              --exclude='.build/node_modules_cache' \
+              --exclude='.build/node_modules_list.txt' \
+              --exclude='.build/distro' \
+              -f compilation.tar.xz \
+              $(ls -d .build out-* test/integration/browser/out test/smoke/out test/automation/out openssl package/out 2>/dev/null)
+
+      - name: Publish compilation artifact
+        if: ${{ endsWith(github.repository, 'codeoss') }}
+        uses: actions/upload-artifact@v6
+        with:
+          name: Compilation
+          path: compilation.tar.xz
+
   build-linux:
     name: Build Linux
     runs-on: ubuntu-22.04 # ubuntu-latest
-    needs: [generate-product-configurations]
+    needs: [generate-product-configurations, compile]
     continue-on-error: true
     strategy:
       fail-fast: true
@@ -184,6 +304,16 @@ jobs:
         uses: actions/download-artifact@v7
         with:
           name: Product configurations
+
+      - name: Download compilation output
+        if: ${{ endsWith(github.repository, 'codeoss') }}
+        uses: actions/download-artifact@v7
+        with:
+          name: Compilation
+
+      - name: Extract compilation output
+        if: ${{ endsWith(github.repository, 'codeoss') }}
+        run: tar -xJf compilation.tar.xz
 
       - name: Setup system services
         if: ${{ endsWith(github.repository, 'codeoss') }}
@@ -277,9 +407,6 @@ jobs:
         uses: ./.github/workflows/install-builtin-extensions
         with:
           cache-version: ${{ env.CACHE_VERSION }}
-
-      - name: Compile
-        run: npm run gulp core-ci
 
       - name: Generate policy definitions
         if: ${{ endsWith(github.repository, 'codeoss') && env.VSCODE_CIBUILD != true }}
@@ -506,7 +633,7 @@ jobs:
   build-macos:
     name: Build macOS
     runs-on: macos-15
-    needs: [generate-product-configurations]
+    needs: [generate-product-configurations, compile]
     continue-on-error: true
     strategy:
       fail-fast: true
@@ -540,6 +667,16 @@ jobs:
         uses: actions/download-artifact@v7
         with:
           name: Product configurations
+
+      - name: Download compilation output
+        if: ${{ endsWith(github.repository, 'codeoss') }}
+        uses: actions/download-artifact@v7
+        with:
+          name: Compilation
+
+      - name: Extract compilation output
+        if: ${{ endsWith(github.repository, 'codeoss') }}
+        run: tar -xJf compilation.tar.xz
 
       - name: Compute node modules cache key
         if: ${{ endsWith(github.repository, 'codeoss') }}
@@ -591,9 +728,6 @@ jobs:
         uses: ./.github/workflows/install-builtin-extensions
         with:
           cache-version: ${{ env.CACHE_VERSION }}
-
-      - name: Compile
-        run: npm run gulp core-ci
 
       - name: Build client artifacts
         if: ${{ endsWith(github.repository, 'codeoss') }}
@@ -830,7 +964,7 @@ jobs:
   build-windows:
     name: Build Windows
     runs-on: windows-2022 # windows-2025
-    needs: [generate-product-configurations]
+    needs: [generate-product-configurations, compile]
     continue-on-error: true
     strategy:
       fail-fast: true
@@ -875,6 +1009,16 @@ jobs:
         uses: actions/download-artifact@v7
         with:
           name: Product configurations
+
+      - name: Download compilation output
+        if: ${{ endsWith(github.repository, 'codeoss') }}
+        uses: actions/download-artifact@v7
+        with:
+          name: Compilation
+
+      - name: Extract compilation output
+        if: ${{ endsWith(github.repository, 'codeoss') }}
+        run: tar -xJf compilation.tar.xz
 
       - name: Compute node modules cache key
         if: ${{ endsWith(github.repository, 'codeoss') }}
@@ -922,9 +1066,6 @@ jobs:
         uses: ./.github/workflows/install-builtin-extensions
         with:
           cache-version: ${{ env.CACHE_VERSION }}
-
-      - name: Compile
-        run: npm run gulp core-ci
 
       - name: Generate policy definitions
         if: ${{ endsWith(github.repository, 'codeoss') && env.VSCODE_CIBUILD != true }}
@@ -1083,7 +1224,7 @@ jobs:
       matrix:
         include:
           - arch: x64
-    needs: [generate-product-configurations]
+    needs: [generate-product-configurations, compile]
     env:
       VSCODE_ARCH: x64
       APPLICATION_NAME: ${{ needs.generate-product-configurations.outputs.application-name }}
@@ -1099,6 +1240,16 @@ jobs:
         uses: actions/download-artifact@v7
         with:
           name: Product configurations
+
+      - name: Download compilation output
+        if: ${{ endsWith(github.repository, 'codeoss') }}
+        uses: actions/download-artifact@v7
+        with:
+          name: Compilation
+
+      - name: Extract compilation output
+        if: ${{ endsWith(github.repository, 'codeoss') }}
+        run: tar -xJf compilation.tar.xz
 
       - name: Compute node modules cache key
         if: ${{ endsWith(github.repository, 'codeoss') }}
@@ -1150,9 +1301,6 @@ jobs:
         uses: ./.github/workflows/install-builtin-extensions
         with:
           cache-version: ${{ env.CACHE_VERSION }}
-
-      - name: Compile
-        run: npm run gulp core-ci
 
       - name: Build artifact
         if: ${{ endsWith(github.repository, 'codeoss') }}
