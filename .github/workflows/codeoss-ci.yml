@@ -596,13 +596,6 @@ jobs:
           [ -f "$SERVER_WEB_XZ_TARBALL_FILENAME" ] && gensha512 "$SERVER_WEB_XZ_TARBALL_FILENAME"
           ([ -f "$SERVER_WEB_GZ_TARBALL_FILENAME" ] && gensha512 "$SERVER_WEB_GZ_TARBALL_FILENAME") || echo >/dev/null
 
-      - name: Switch to tag name
-        if: ${{ startsWith(github.ref, 'refs/tags/v') }}
-        run: |
-          echo "PUBLISH_NAME=${{ github.ref }}" >>"$GITHUB_ENV"
-          echo "PUBLISH_TAG_NAME=${{ github.ref }}" >>"$GITHUB_ENV"
-          echo "PRE_RELEASE=false" >>"$GITHUB_ENV"
-
       - name: Publish artifacts
         if: ${{ endsWith(github.repository, 'codeoss') }}
         uses: softprops/action-gh-release@v2.5.0
@@ -827,13 +820,6 @@ jobs:
           [ -f "$SERVER_WEB_GZ_TARBALL_NAME" ] && gensha512 "$SERVER_WEB_GZ_TARBALL_NAME"
           [ -f "$SERVER_WEB_ZIP_NAME" ] && gensha512 "$SERVER_WEB_ZIP_NAME"
 
-      - name: Switch to tag name
-        if: ${{ startsWith(github.ref, 'refs/tags/v') }}
-        run: |
-          echo "PUBLISH_NAME=${{ github.ref }}" >>"$GITHUB_ENV"
-          echo "PUBLISH_TAG_NAME=${{ github.ref }}" >>"$GITHUB_ENV"
-          echo "PRE_RELEASE=false" >>"$GITHUB_ENV"
-
       - name: Publish artifacts
         if: ${{ endsWith(github.repository, 'codeoss') }}
         uses: softprops/action-gh-release@v2.5.0
@@ -946,13 +932,6 @@ jobs:
           [ -f "$XZ_TARBALL_NAME" ] && gensha512 "$XZ_TARBALL_NAME"
           [ -f "$GZ_TARBALL_NAME" ] && gensha512 "$GZ_TARBALL_NAME"
           [ -f "$ZIP_NAME" ] && gensha512 "$ZIP_NAME"
-
-      - name: Switch to tag name
-        if: ${{ startsWith(github.ref, 'refs/tags/v') }}
-        run: |
-          echo "PUBLISH_NAME=${{ github.ref }}" >>"$GITHUB_ENV"
-          echo "PUBLISH_TAG_NAME=${{ github.ref }}" >>"$GITHUB_ENV"
-          echo "PRE_RELEASE=false" >>"$GITHUB_ENV"
 
       - name: Publish artifacts
         if: ${{ endsWith(github.repository, 'codeoss') }}
@@ -1192,13 +1171,6 @@ jobs:
           [ -f "$SERVER_WEB_XZ_TARBALL_NAME" ] && gensha512 "$SERVER_WEB_XZ_TARBALL_NAME"
           ([ -f "$SERVER_WEB_ZIP_NAME" ] && gensha512 "$SERVER_WEB_ZIP_NAME") || echo >/dev/null
 
-      - name: Switch to tag name
-        if: ${{ startsWith(github.ref, 'refs/tags/v') }}
-        run: |
-          echo "PUBLISH_NAME=${{ github.ref }}" >>"$GITHUB_ENV"
-          echo "PUBLISH_TAG_NAME=${{ github.ref }}" >>"$GITHUB_ENV"
-          echo "PRE_RELEASE=false" >>"$GITHUB_ENV"
-
       - name: Publish artifacts
         if: ${{ endsWith(github.repository, 'codeoss') }}
         uses: softprops/action-gh-release@v2.5.0
@@ -1338,13 +1310,6 @@ jobs:
           gensha512() { (sha512sum "$1" | awk '{print $1}' >"$1".sha512); }
           [ -f "$WEB_XZ_TARBALL_FILENAME" ] && gensha512 "$WEB_XZ_TARBALL_FILENAME"
           [ -f "$WEB_GZ_TARBALL_FILENAME" ] && gensha512 "$WEB_GZ_TARBALL_FILENAME"
-
-      - name: Switch to tag name
-        if: ${{ startsWith(github.ref, 'refs/tags/v') }}
-        run: |
-          echo "PUBLISH_NAME=${{ github.ref }}" >>"$GITHUB_ENV"
-          echo "PUBLISH_TAG_NAME=${{ github.ref }}" >>"$GITHUB_ENV"
-          echo "PRE_RELEASE=false" >>"$GITHUB_ENV"
 
       - name: Publish artifacts
         if: ${{ endsWith(github.repository, 'codeoss') }}
