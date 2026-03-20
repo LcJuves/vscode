@@ -20,7 +20,7 @@ env:
   CARGO_TERM_COLOR: always
   CODE_ICO_URL: https://github.com/LcJuves/vscode/raw/94cba4eb314f52fd18b47b72459954fda65302d0/resources/win32/code.ico
   VSCODE_STEP_ON_IT: false
-  CACHE_VERSION: 1773965451
+  CACHE_VERSION: 1774036453
   PRE_RELEASE: true
   MAKE_LATEST: legacy
   VSCODE_QUALITY: stable
@@ -242,7 +242,7 @@ jobs:
     name: Build Linux
     runs-on: ubuntu-22.04 # ubuntu-latest
     needs: [generate-product-configurations, compile]
-    continue-on-error: true
+    continue-on-error: false
     strategy:
       fail-fast: true
       matrix:
@@ -582,6 +582,8 @@ jobs:
       - name: Generate SHA512 checksum files
         if: ${{ endsWith(github.repository, 'codeoss') }}
         run: |
+          echo "PUBLISH_NAME=${{ needs.generate-product-configurations.outputs.publish-name }}" >>"$GITHUB_ENV"
+          echo "PUBLISH_TAG_NAME=v$VERSION" >>"$GITHUB_ENV"
           gensha512() { (sha512sum "$1" | awk '{print $1}' >"$1".sha512); }
           [ -f "$XZ_TARBALL_NAME" ] && gensha512 "$XZ_TARBALL_NAME"
           [ -f "$GZ_TARBALL_NAME" ] && gensha512 "$GZ_TARBALL_NAME"
@@ -597,8 +599,8 @@ jobs:
       - name: Switch to tag name
         if: ${{ startsWith(github.ref, 'refs/tags/v') }}
         run: |
-          echo "PUBLISH_NAME=${{ needs.generate-product-configurations.outputs.publish-name }}" >>"$GITHUB_ENV"
-          echo "PUBLISH_TAG_NAME=v$VERSION" >>"$GITHUB_ENV"
+          echo "PUBLISH_NAME=${{ github.ref }}" >>"$GITHUB_ENV"
+          echo "PUBLISH_TAG_NAME=${{ github.ref }}" >>"$GITHUB_ENV"
           echo "PRE_RELEASE=false" >>"$GITHUB_ENV"
 
       - name: Publish artifacts
@@ -636,7 +638,7 @@ jobs:
     name: Build macOS
     runs-on: macos-15
     needs: [generate-product-configurations, compile]
-    continue-on-error: true
+    continue-on-error: false
     strategy:
       fail-fast: true
       matrix:
@@ -812,6 +814,8 @@ jobs:
       - name: Generate SHA512 checksum files
         if: ${{ endsWith(github.repository, 'codeoss') }}
         run: |
+          echo "PUBLISH_NAME=${{ needs.generate-product-configurations.outputs.publish-name }}" >>"$GITHUB_ENV"
+          echo "PUBLISH_TAG_NAME=v$VERSION" >>"$GITHUB_ENV"
           gensha512() { (shasum -a 512 "$1" | awk '{print $1}' >"$1".sha512); }
           [ -f "$XZ_TARBALL_NAME" ] && gensha512 "$XZ_TARBALL_NAME"
           [ -f "$GZ_TARBALL_NAME" ] && gensha512 "$GZ_TARBALL_NAME"
@@ -826,8 +830,8 @@ jobs:
       - name: Switch to tag name
         if: ${{ startsWith(github.ref, 'refs/tags/v') }}
         run: |
-          echo "PUBLISH_NAME=${{ needs.generate-product-configurations.outputs.publish-name }}" >>"$GITHUB_ENV"
-          echo "PUBLISH_TAG_NAME=v$VERSION" >>"$GITHUB_ENV"
+          echo "PUBLISH_NAME=${{ github.ref }}" >>"$GITHUB_ENV"
+          echo "PUBLISH_TAG_NAME=${{ github.ref }}" >>"$GITHUB_ENV"
           echo "PRE_RELEASE=false" >>"$GITHUB_ENV"
 
       - name: Publish artifacts
@@ -936,6 +940,8 @@ jobs:
       - name: Generate SHA512 checksum files
         if: ${{ endsWith(github.repository, 'codeoss') }}
         run: |
+          echo "PUBLISH_NAME=${{ needs.generate-product-configurations.outputs.publish-name }}" >>"$GITHUB_ENV"
+          echo "PUBLISH_TAG_NAME=v$VERSION" >>"$GITHUB_ENV"
           gensha512() { (shasum -a 512 "$1" | awk '{print $1}' >"$1".sha512); }
           [ -f "$XZ_TARBALL_NAME" ] && gensha512 "$XZ_TARBALL_NAME"
           [ -f "$GZ_TARBALL_NAME" ] && gensha512 "$GZ_TARBALL_NAME"
@@ -944,8 +950,8 @@ jobs:
       - name: Switch to tag name
         if: ${{ startsWith(github.ref, 'refs/tags/v') }}
         run: |
-          echo "PUBLISH_NAME=${{ needs.generate-product-configurations.outputs.publish-name }}" >>"$GITHUB_ENV"
-          echo "PUBLISH_TAG_NAME=v$VERSION" >>"$GITHUB_ENV"
+          echo "PUBLISH_NAME=${{ github.ref }}" >>"$GITHUB_ENV"
+          echo "PUBLISH_TAG_NAME=${{ github.ref }}" >>"$GITHUB_ENV"
           echo "PRE_RELEASE=false" >>"$GITHUB_ENV"
 
       - name: Publish artifacts
@@ -969,7 +975,7 @@ jobs:
     name: Build Windows
     runs-on: windows-2022 # windows-2025
     needs: [generate-product-configurations, compile]
-    continue-on-error: true
+    continue-on-error: false
     strategy:
       fail-fast: true
       matrix:
@@ -1173,6 +1179,8 @@ jobs:
       - name: Generate SHA512 checksum files
         if: ${{ endsWith(github.repository, 'codeoss') }}
         run: |
+          echo "PUBLISH_NAME=${{ needs.generate-product-configurations.outputs.publish-name }}" >>"$GITHUB_ENV"
+          echo "PUBLISH_TAG_NAME=v$VERSION" >>"$GITHUB_ENV"
           gensha512() { (sha512sum "$1" | awk '{print $1}' >"$1".sha512); }
           [ -f "$XZ_TARBALL_NAME" ] && gensha512 "$XZ_TARBALL_NAME"
           [ -f "$ZIP_NAME" ] && gensha512 "$ZIP_NAME"
@@ -1187,8 +1195,8 @@ jobs:
       - name: Switch to tag name
         if: ${{ startsWith(github.ref, 'refs/tags/v') }}
         run: |
-          echo "PUBLISH_NAME=${{ needs.generate-product-configurations.outputs.publish-name }}" >>"$GITHUB_ENV"
-          echo "PUBLISH_TAG_NAME=v$VERSION" >>"$GITHUB_ENV"
+          echo "PUBLISH_NAME=${{ github.ref }}" >>"$GITHUB_ENV"
+          echo "PUBLISH_TAG_NAME=${{ github.ref }}" >>"$GITHUB_ENV"
           echo "PRE_RELEASE=false" >>"$GITHUB_ENV"
 
       - name: Publish artifacts
@@ -1325,6 +1333,8 @@ jobs:
       - name: Generate SHA512 checksum files
         if: ${{ endsWith(github.repository, 'codeoss') }}
         run: |
+          echo "PUBLISH_NAME=${{ needs.generate-product-configurations.outputs.publish-name }}" >>"$GITHUB_ENV"
+          echo "PUBLISH_TAG_NAME=v$VERSION" >>"$GITHUB_ENV"
           gensha512() { (sha512sum "$1" | awk '{print $1}' >"$1".sha512); }
           [ -f "$WEB_XZ_TARBALL_FILENAME" ] && gensha512 "$WEB_XZ_TARBALL_FILENAME"
           [ -f "$WEB_GZ_TARBALL_FILENAME" ] && gensha512 "$WEB_GZ_TARBALL_FILENAME"
@@ -1332,8 +1342,8 @@ jobs:
       - name: Switch to tag name
         if: ${{ startsWith(github.ref, 'refs/tags/v') }}
         run: |
-          echo "PUBLISH_NAME=${{ needs.generate-product-configurations.outputs.publish-name }}" >>"$GITHUB_ENV"
-          echo "PUBLISH_TAG_NAME=v$VERSION" >>"$GITHUB_ENV"
+          echo "PUBLISH_NAME=${{ github.ref }}" >>"$GITHUB_ENV"
+          echo "PUBLISH_TAG_NAME=${{ github.ref }}" >>"$GITHUB_ENV"
           echo "PRE_RELEASE=false" >>"$GITHUB_ENV"
 
       - name: Publish artifacts
