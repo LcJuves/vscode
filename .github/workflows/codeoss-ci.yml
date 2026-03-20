@@ -6,12 +6,11 @@ name: Code OSS CI
 on:
   push:
     branches:
-      - dev/*
-    tags:
-      - v*.*.*
+      - dev/**
   pull_request:
     branches:
-      - $default-branch
+      - main
+      - releases/**
 
 env:
   GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -20,10 +19,9 @@ env:
   CARGO_TERM_COLOR: always
   CODE_ICO_URL: https://github.com/LcJuves/vscode/raw/94cba4eb314f52fd18b47b72459954fda65302d0/resources/win32/code.ico
   VSCODE_STEP_ON_IT: false
-  CACHE_VERSION: 1774036453
+  CACHE_TIMESTAMP: 1774044350
   PRE_RELEASE: true
   MAKE_LATEST: legacy
-  VSCODE_QUALITY: stable
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
 
 defaults:
@@ -37,8 +35,7 @@ jobs:
     strategy:
       fail-fast: true
       matrix:
-        include:
-          - arch: x64
+        arch: [x64]
     outputs:
       application-name: ${{ steps.write-job-variables.outputs.application-name }}
       tunnel-application-name: ${{ steps.write-job-variables.outputs.tunnel-application-name }}
@@ -68,7 +65,7 @@ jobs:
           VS_ZIP_URL="https://update.code.visualstudio.com/${UNIVERSAL_ZIP_VERSION}/darwin-universal/stable"
           CURL_DO_URL=$(curl -is "$VS_ZIP_URL" | grep Location | awk -F ": " '{print $2}' | tr -d "\r|\n")
           echo "CURL_DO_URL=$CURL_DO_URL" >>"$GITHUB_ENV"
-          echo "key=$(echo "$CURL_DO_URL#$CACHE_VERSION" | sha512sum | awk '{print $1}')" >>"$GITHUB_OUTPUT"
+          echo "key=$(echo "$CURL_DO_URL#$CACHE_TIMESTAMP" | sha512sum | awk '{print $1}')" >>"$GITHUB_OUTPUT"
 
       - name: Cache product configurations
         if: ${{ endsWith(github.repository, 'codeoss') }}
@@ -124,10 +121,10 @@ jobs:
     strategy:
       fail-fast: true
       matrix:
-        include:
-          - arch: x64
+        arch: [x64]
     env:
       OPENSSL_PREBUILT_VERSION: 0.0.11
+      VSCODE_QUALITY: oss
 
     steps:
       - uses: actions/checkout@v6
@@ -146,7 +143,7 @@ jobs:
         uses: actions/cache@v5
         with:
           path: ".build/node_modules_cache"
-          key: "NodeModules${{ steps.compute-node-modules-cache-key.outputs.key }}${{ env.CACHE_VERSION }}"
+          key: "NodeModules${{ steps.compute-node-modules-cache-key.outputs.key }}${{ env.CACHE_TIMESTAMP }}"
 
       - name: Extract node modules archive
         if: ${{ steps.cache-node-modules.outputs.cache-hit == 'true' }}
@@ -188,7 +185,7 @@ jobs:
         if: ${{ endsWith(github.repository, 'codeoss') }}
         uses: ./.github/workflows/install-builtin-extensions
         with:
-          cache-version: ${{ env.CACHE_VERSION }}
+          cache-version: ${{ env.CACHE_TIMESTAMP }}
 
       - name: Compile & Hygiene
         if: ${{ endsWith(github.repository, 'codeoss') }}
@@ -202,7 +199,7 @@ jobs:
       - name: Compute openssl prebuilt cache key
         if: ${{ endsWith(github.repository, 'codeoss') }}
         id: compute-openssl-prebuilt-cache-key
-        run: echo "key=$(echo "OPENSSL_PREBUILT#$OPENSSL_PREBUILT_VERSION#$CACHE_VERSION" | sha512sum | awk '{print $1}')" >>"$GITHUB_OUTPUT"
+        run: echo "key=$(echo "OPENSSL_PREBUILT#$OPENSSL_PREBUILT_VERSION#$CACHE_TIMESTAMP" | sha512sum | awk '{print $1}')" >>"$GITHUB_OUTPUT"
 
       - name: Cache openssl prebuilt
         if: ${{ endsWith(github.repository, 'codeoss') }}
@@ -253,6 +250,7 @@ jobs:
             vscode-cli-target: aarch64-unknown-linux-gnu
           - arch: armhf
             vscode-cli-target: armv7-unknown-linux-gnueabihf
+        vscode-quality: [stable, insider, exploration, oss]
     env:
       VSCODE_ARCH: ${{ matrix.arch }}
       APPLICATION_NAME: ${{ needs.generate-product-configurations.outputs.application-name }}
@@ -261,6 +259,7 @@ jobs:
       VERSION: ${{ needs.generate-product-configurations.outputs.version }}
       VSCODE_CLI_TARGET: ${{ matrix.vscode-cli-target }}
       VSCODE_CIBUILD: false
+      VSCODE_QUALITY: ${{ matrix.vscode-quality }}
 
     steps:
       - uses: actions/checkout@v6
@@ -337,7 +336,7 @@ jobs:
       - name: Compute node modules cache key
         if: ${{ endsWith(github.repository, 'codeoss') }}
         id: compute-node-modules-cache-key
-        run: echo "key=$(node build/azure-pipelines/common/computeNodeModulesCacheKey.ts linux $VSCODE_ARCH)" >>"$GITHUB_OUTPUT"
+        run: echo "key=$(node build/azure-pipelines/common/computeNodeModulesCacheKey.ts linux $VSCODE_ARCH $VSCODE_QUALITY)" >>"$GITHUB_OUTPUT"
 
       - name: Cache node modules
         if: ${{ endsWith(github.repository, 'codeoss') }}
@@ -345,7 +344,7 @@ jobs:
         uses: actions/cache@v5
         with:
           path: ".build/node_modules_cache"
-          key: "NodeModules${{ steps.compute-node-modules-cache-key.outputs.key }}${{ env.CACHE_VERSION }}"
+          key: "NodeModules${{ steps.compute-node-modules-cache-key.outputs.key }}${{ env.CACHE_TIMESTAMP }}"
 
       - name: Extract node modules archive
         if: ${{ steps.cache-node-modules.outputs.cache-hit == 'true' }}
@@ -408,7 +407,7 @@ jobs:
         if: ${{ endsWith(github.repository, 'codeoss') }}
         uses: ./.github/workflows/install-builtin-extensions
         with:
-          cache-version: ${{ env.CACHE_VERSION }}
+          cache-version: ${{ env.CACHE_TIMESTAMP }}
 
       - name: Generate policy definitions
         if: ${{ endsWith(github.repository, 'codeoss') && env.VSCODE_CIBUILD != true }}
@@ -582,8 +581,6 @@ jobs:
       - name: Generate SHA512 checksum files
         if: ${{ endsWith(github.repository, 'codeoss') }}
         run: |
-          echo "PUBLISH_NAME=${{ needs.generate-product-configurations.outputs.publish-name }}" >>"$GITHUB_ENV"
-          echo "PUBLISH_TAG_NAME=v$VERSION" >>"$GITHUB_ENV"
           gensha512() { (sha512sum "$1" | awk '{print $1}' >"$1".sha512); }
           [ -f "$XZ_TARBALL_NAME" ] && gensha512 "$XZ_TARBALL_NAME"
           [ -f "$GZ_TARBALL_NAME" ] && gensha512 "$GZ_TARBALL_NAME"
@@ -600,8 +597,8 @@ jobs:
         if: ${{ endsWith(github.repository, 'codeoss') }}
         uses: softprops/action-gh-release@v2.5.0
         with:
-          name: ${{ env.PUBLISH_NAME }}
-          tag_name: ${{ env.PUBLISH_TAG_NAME }}
+          name: ${{ needs.generate-product-configurations.outputs.publish-name }}
+          tag_name: v${{ env.VERSION }}-${{ env.VSCODE_QUALITY }}
           prerelease: ${{ env.PRE_RELEASE }}
           make_latest: ${{ env.MAKE_LATEST }}
           target_commitish: ${{ env.GITHUB_SHA }}
@@ -640,6 +637,7 @@ jobs:
             vscode-cli-target-arch: x86_64
           - arch: arm64
             vscode-cli-target-arch: aarch64
+        vscode-quality: [stable, insider, exploration, oss]
     env:
       VSCODE_ARCH: ${{ matrix.arch }}
       APPLICATION_NAME: ${{ needs.generate-product-configurations.outputs.application-name }}
@@ -648,6 +646,7 @@ jobs:
       NAME_LONG: ${{ needs.generate-product-configurations.outputs.name-long }}
       VERSION: ${{ needs.generate-product-configurations.outputs.version }}
       VSCODE_CLI_TARGET: ${{ matrix.vscode-cli-target-arch }}-apple-darwin
+      VSCODE_QUALITY: ${{ matrix.vscode-quality }}
 
     steps:
       - uses: actions/checkout@v6
@@ -679,7 +678,7 @@ jobs:
       - name: Compute node modules cache key
         if: ${{ endsWith(github.repository, 'codeoss') }}
         id: compute-node-modules-cache-key
-        run: echo "key=$(node build/azure-pipelines/common/computeNodeModulesCacheKey.ts darwin $VSCODE_ARCH)" >>"$GITHUB_OUTPUT"
+        run: echo "key=$(node build/azure-pipelines/common/computeNodeModulesCacheKey.ts darwin $VSCODE_ARCH $VSCODE_QUALITY)" >>"$GITHUB_OUTPUT"
 
       - name: Cache node modules
         if: ${{ endsWith(github.repository, 'codeoss') }}
@@ -687,7 +686,7 @@ jobs:
         uses: actions/cache@v5
         with:
           path: ".build/node_modules_cache"
-          key: "NodeModules${{ steps.compute-node-modules-cache-key.outputs.key }}${{ env.CACHE_VERSION }}"
+          key: "NodeModules${{ steps.compute-node-modules-cache-key.outputs.key }}${{ env.CACHE_TIMESTAMP }}"
 
       - name: Extract node modules archive
         if: ${{ steps.cache-node-modules.outputs.cache-hit == 'true' }}
@@ -725,7 +724,7 @@ jobs:
         if: ${{ endsWith(github.repository, 'codeoss') }}
         uses: ./.github/workflows/install-builtin-extensions
         with:
-          cache-version: ${{ env.CACHE_VERSION }}
+          cache-version: ${{ env.CACHE_TIMESTAMP }}
 
       - name: Build client artifacts
         if: ${{ endsWith(github.repository, 'codeoss') }}
@@ -807,8 +806,6 @@ jobs:
       - name: Generate SHA512 checksum files
         if: ${{ endsWith(github.repository, 'codeoss') }}
         run: |
-          echo "PUBLISH_NAME=${{ needs.generate-product-configurations.outputs.publish-name }}" >>"$GITHUB_ENV"
-          echo "PUBLISH_TAG_NAME=v$VERSION" >>"$GITHUB_ENV"
           gensha512() { (shasum -a 512 "$1" | awk '{print $1}' >"$1".sha512); }
           [ -f "$XZ_TARBALL_NAME" ] && gensha512 "$XZ_TARBALL_NAME"
           [ -f "$GZ_TARBALL_NAME" ] && gensha512 "$GZ_TARBALL_NAME"
@@ -824,8 +821,8 @@ jobs:
         if: ${{ endsWith(github.repository, 'codeoss') }}
         uses: softprops/action-gh-release@v2.5.0
         with:
-          name: ${{ env.PUBLISH_NAME }}
-          tag_name: ${{ env.PUBLISH_TAG_NAME }}
+          name: ${{ needs.generate-product-configurations.outputs.publish-name }}
+          tag_name: v${{ env.VERSION }}-${{ env.VSCODE_QUALITY }}
           prerelease: ${{ env.PRE_RELEASE }}
           make_latest: ${{ env.MAKE_LATEST }}
           target_commitish: ${{ env.GITHUB_SHA }}
@@ -853,8 +850,8 @@ jobs:
     strategy:
       fail-fast: true
       matrix:
-        include:
-          - arch: arm64
+        arch: [arm64]
+        vscode-quality: [stable, insider, exploration, oss]
     needs: [generate-product-configurations, build-macos]
     env:
       VSCODE_ARCH: universal
@@ -862,6 +859,7 @@ jobs:
       NAME_LONG: ${{ needs.generate-product-configurations.outputs.name-long }}
       VERSION: ${{ needs.generate-product-configurations.outputs.version }}
       GITHUB_REPOSITORY: ${{ github.repository }}
+      VSCODE_QUALITY: ${{ matrix.vscode-quality }}
 
     steps:
       - uses: actions/checkout@v6
@@ -926,8 +924,6 @@ jobs:
       - name: Generate SHA512 checksum files
         if: ${{ endsWith(github.repository, 'codeoss') }}
         run: |
-          echo "PUBLISH_NAME=${{ needs.generate-product-configurations.outputs.publish-name }}" >>"$GITHUB_ENV"
-          echo "PUBLISH_TAG_NAME=v$VERSION" >>"$GITHUB_ENV"
           gensha512() { (shasum -a 512 "$1" | awk '{print $1}' >"$1".sha512); }
           [ -f "$XZ_TARBALL_NAME" ] && gensha512 "$XZ_TARBALL_NAME"
           [ -f "$GZ_TARBALL_NAME" ] && gensha512 "$GZ_TARBALL_NAME"
@@ -937,8 +933,8 @@ jobs:
         if: ${{ endsWith(github.repository, 'codeoss') }}
         uses: softprops/action-gh-release@v2.5.0
         with:
-          name: ${{ env.PUBLISH_NAME }}
-          tag_name: ${{ env.PUBLISH_TAG_NAME }}
+          name: ${{ needs.generate-product-configurations.outputs.publish-name }}
+          tag_name: v${{ env.VERSION }}-${{ env.VSCODE_QUALITY }}
           prerelease: ${{ env.PRE_RELEASE }}
           make_latest: ${{ env.MAKE_LATEST }}
           target_commitish: ${{ env.GITHUB_SHA }}
@@ -967,6 +963,7 @@ jobs:
             vscode-cli-target-arch: aarch64
             env:
               RUSTFLAGS: "-C target-feature=+crt-static -Clink-args=/guard:cf -Clink-args=/CETCOMPAT:NO"
+        vscode-quality: [stable, insider, exploration, oss]
 
     env:
       VSCODE_ARCH: ${{ matrix.arch }}
@@ -978,6 +975,7 @@ jobs:
       CARGO_NET_GIT_FETCH_WITH_CLI: true
       CFLAGS: "/guard:cf /Qspectre"
       VSCODE_CIBUILD: false
+      VSCODE_QUALITY: ${{ matrix.vscode-quality }}
 
     steps:
       - uses: actions/checkout@v6
@@ -1012,7 +1010,7 @@ jobs:
       - name: Compute node modules cache key
         if: ${{ endsWith(github.repository, 'codeoss') }}
         id: compute-node-modules-cache-key
-        run: echo "key=$(node build/azure-pipelines/common/computeNodeModulesCacheKey.ts win32 $VSCODE_ARCH)" >>"$GITHUB_OUTPUT"
+        run: echo "key=$(node build/azure-pipelines/common/computeNodeModulesCacheKey.ts win32 $VSCODE_ARCH $VSCODE_QUALITY)" >>"$GITHUB_OUTPUT"
 
       - name: Cache node modules
         if: ${{ endsWith(github.repository, 'codeoss') }}
@@ -1020,7 +1018,7 @@ jobs:
         uses: actions/cache@v5
         with:
           path: ".build/node_modules_cache"
-          key: "NodeModules${{ steps.compute-node-modules-cache-key.outputs.key }}${{ env.CACHE_VERSION }}"
+          key: "NodeModules${{ steps.compute-node-modules-cache-key.outputs.key }}${{ env.CACHE_TIMESTAMP }}"
 
       - name: Extract node modules archive
         if: ${{ steps.cache-node-modules.outputs.cache-hit == 'true' }}
@@ -1054,7 +1052,7 @@ jobs:
         if: ${{ endsWith(github.repository, 'codeoss') }}
         uses: ./.github/workflows/install-builtin-extensions
         with:
-          cache-version: ${{ env.CACHE_VERSION }}
+          cache-version: ${{ env.CACHE_TIMESTAMP }}
 
       - name: Generate policy definitions
         if: ${{ endsWith(github.repository, 'codeoss') && env.VSCODE_CIBUILD != true }}
@@ -1158,8 +1156,6 @@ jobs:
       - name: Generate SHA512 checksum files
         if: ${{ endsWith(github.repository, 'codeoss') }}
         run: |
-          echo "PUBLISH_NAME=${{ needs.generate-product-configurations.outputs.publish-name }}" >>"$GITHUB_ENV"
-          echo "PUBLISH_TAG_NAME=v$VERSION" >>"$GITHUB_ENV"
           gensha512() { (sha512sum "$1" | awk '{print $1}' >"$1".sha512); }
           [ -f "$XZ_TARBALL_NAME" ] && gensha512 "$XZ_TARBALL_NAME"
           [ -f "$ZIP_NAME" ] && gensha512 "$ZIP_NAME"
@@ -1175,8 +1171,8 @@ jobs:
         if: ${{ endsWith(github.repository, 'codeoss') }}
         uses: softprops/action-gh-release@v2.5.0
         with:
-          name: ${{ env.PUBLISH_NAME }}
-          tag_name: ${{ env.PUBLISH_TAG_NAME }}
+          name: ${{ needs.generate-product-configurations.outputs.publish-name }}
+          tag_name: v${{ env.VERSION }}-${{ env.VSCODE_QUALITY }}
           prerelease: ${{ env.PRE_RELEASE }}
           make_latest: ${{ env.MAKE_LATEST }}
           target_commitish: ${{ env.GITHUB_SHA }}
@@ -1206,13 +1202,14 @@ jobs:
     strategy:
       fail-fast: true
       matrix:
-        include:
-          - arch: x64
+        arch: [x64]
+        vscode-quality: [stable, insider, exploration, oss]
     needs: [generate-product-configurations, compile]
     env:
       VSCODE_ARCH: x64
       APPLICATION_NAME: ${{ needs.generate-product-configurations.outputs.application-name }}
       VERSION: ${{ needs.generate-product-configurations.outputs.version }}
+      VSCODE_QUALITY: ${{ matrix.vscode-quality }}
 
     steps:
       - uses: actions/checkout@v6
@@ -1239,7 +1236,7 @@ jobs:
       - name: Compute node modules cache key
         if: ${{ endsWith(github.repository, 'codeoss') }}
         id: compute-node-modules-cache-key
-        run: echo "key=$(node build/azure-pipelines/common/computeNodeModulesCacheKey.ts web $VSCODE_ARCH)" >>"$GITHUB_OUTPUT"
+        run: echo "key=$(node build/azure-pipelines/common/computeNodeModulesCacheKey.ts web $VSCODE_ARCH $VSCODE_QUALITY)" >>"$GITHUB_OUTPUT"
 
       - name: Cache node modules
         if: ${{ endsWith(github.repository, 'codeoss') }}
@@ -1247,7 +1244,7 @@ jobs:
         uses: actions/cache@v5
         with:
           path: ".build/node_modules_cache"
-          key: "WebNodeModules${{ steps.compute-node-modules-cache-key.outputs.key }}${{ env.CACHE_VERSION }}"
+          key: "WebNodeModules${{ steps.compute-node-modules-cache-key.outputs.key }}${{ env.CACHE_TIMESTAMP }}"
 
       - name: Extract node modules archive
         if: ${{ steps.cache-node-modules.outputs.cache-hit == 'true' }}
@@ -1285,7 +1282,7 @@ jobs:
         if: ${{ endsWith(github.repository, 'codeoss') }}
         uses: ./.github/workflows/install-builtin-extensions
         with:
-          cache-version: ${{ env.CACHE_VERSION }}
+          cache-version: ${{ env.CACHE_TIMESTAMP }}
 
       - name: Build artifact
         if: ${{ endsWith(github.repository, 'codeoss') }}
@@ -1305,8 +1302,6 @@ jobs:
       - name: Generate SHA512 checksum files
         if: ${{ endsWith(github.repository, 'codeoss') }}
         run: |
-          echo "PUBLISH_NAME=${{ needs.generate-product-configurations.outputs.publish-name }}" >>"$GITHUB_ENV"
-          echo "PUBLISH_TAG_NAME=v$VERSION" >>"$GITHUB_ENV"
           gensha512() { (sha512sum "$1" | awk '{print $1}' >"$1".sha512); }
           [ -f "$WEB_XZ_TARBALL_FILENAME" ] && gensha512 "$WEB_XZ_TARBALL_FILENAME"
           [ -f "$WEB_GZ_TARBALL_FILENAME" ] && gensha512 "$WEB_GZ_TARBALL_FILENAME"
@@ -1315,8 +1310,8 @@ jobs:
         if: ${{ endsWith(github.repository, 'codeoss') }}
         uses: softprops/action-gh-release@v2.5.0
         with:
-          name: ${{ env.PUBLISH_NAME }}
-          tag_name: ${{ env.PUBLISH_TAG_NAME }}
+          name: ${{ needs.generate-product-configurations.outputs.publish-name }}
+          tag_name: v${{ env.VERSION }}-${{ env.VSCODE_QUALITY }}
           prerelease: ${{ env.PRE_RELEASE }}
           make_latest: ${{ env.MAKE_LATEST }}
           target_commitish: ${{ env.GITHUB_SHA }}
