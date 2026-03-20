@@ -49,8 +49,6 @@ import { Button } from '../../../../../base/browser/ui/button/button.js';
 import { defaultButtonStyles } from '../../../../../platform/theme/browser/defaultStyles.js';
 import { AgentSessionApprovalModel } from './agentSessionApprovalModel.js';
 import { BugIndicatingError } from '../../../../../base/common/errors.js';
-import { ILogService } from '../../../../../platform/log/common/log.js';
-
 
 export type AgentSessionListItem = IAgentSession | IAgentSessionSection;
 
@@ -368,7 +366,11 @@ export class AgentSessionRenderer extends Disposable implements ICompressibleTre
 			return Codicon.circleFilled;
 		}
 
-		return Codicon.circleSmallFilled;
+		if (session.providerType === AgentSessionProviders.Local) {
+			return Codicon.circleSmallFilled;
+		}
+
+		return session.icon;
 	}
 
 	private renderDescription(session: ITreeNode<IAgentSession, FuzzyScore>, template: IAgentSessionItemTemplate): boolean {
@@ -756,7 +758,6 @@ export class AgentSessionsDataSource extends Disposable implements IAsyncDataSou
 	constructor(
 		private readonly filter: IAgentSessionsFilter | undefined,
 		private readonly sorter: ITreeSorter<IAgentSession>,
-		private readonly logService?: ILogService,
 	) {
 		super();
 	}
@@ -848,14 +849,22 @@ export class AgentSessionsDataSource extends Disposable implements IAsyncDataSou
 
 		const firstArchivedIndex = sortedSessions.findIndex(session => session.isArchived());
 		const nonArchivedCount = firstArchivedIndex === -1 ? sortedSessions.length : firstArchivedIndex;
+		const nonArchivedSessions = sortedSessions.slice(0, nonArchivedCount);
+		const archivedSessions = sortedSessions.slice(nonArchivedCount);
 
-		const topSessions = sortedSessions.slice(0, Math.min(AgentSessionsDataSource.CAPPED_SESSIONS_LIMIT, nonArchivedCount));
-		const othersSessions = sortedSessions.slice(topSessions.length);
+		// All pinned sessions are always visible
+		const pinnedSessions = nonArchivedSessions.filter(session => session.isPinned());
+		const unpinnedSessions = nonArchivedSessions.filter(session => !session.isPinned());
 
-		// Add top sessions directly (no section header)
-		result.push(...topSessions);
+		// Take up to N non-pinned sessions from the sorted order (preserves NeedsInput prioritization)
+		const topUnpinned = unpinnedSessions.slice(0, AgentSessionsDataSource.CAPPED_SESSIONS_LIMIT);
+		const remainingUnpinned = unpinnedSessions.slice(AgentSessionsDataSource.CAPPED_SESSIONS_LIMIT);
 
-		// Add "More" section for the rest
+		// Add pinned first, then top N non-pinned
+		result.push(...pinnedSessions, ...topUnpinned);
+
+		// Add "More" section for the rest (remaining unpinned + archived)
+		const othersSessions = [...remainingUnpinned, ...archivedSessions];
 		if (othersSessions.length > 0) {
 			result.push({
 				section: AgentSessionSection.More,
@@ -886,8 +895,7 @@ export class AgentSessionsDataSource extends Disposable implements IAsyncDataSou
 		const repoMap = new Map<string, { label: string; sessions: IAgentSession[] }>();
 		const pinnedSessions: IAgentSession[] = [];
 		const archivedSessions: IAgentSession[] = [];
-		const unknownKey = '\x00unknown';
-		const unknownLabel = localize('agentSessions.noRepository', "Other");
+		const otherSessions: IAgentSession[] = [];
 
 		for (const session of sortedSessions) {
 			if (session.isArchived()) {
@@ -900,19 +908,17 @@ export class AgentSessionsDataSource extends Disposable implements IAsyncDataSou
 				continue;
 			}
 
-			const repoName = this.getRepositoryName(session);
-			if (!repoName) {
-				this.logService?.warn('[AgentSessions] Could not determine repository name for session, categorizing as "Other"', JSON.stringify(session));
+			const repoName = getRepositoryName(session);
+			if (repoName) {
+				let group = repoMap.get(repoName);
+				if (!group) {
+					group = { label: repoName, sessions: [] };
+					repoMap.set(repoName, group);
+				}
+				group.sessions.push(session);
+			} else {
+				otherSessions.push(session);
 			}
-			const repoId = repoName || unknownKey;
-			const repoLabel = repoName || unknownLabel;
-
-			let group = repoMap.get(repoId);
-			if (!group) {
-				group = { label: repoLabel, sessions: [] };
-				repoMap.set(repoId, group);
-			}
-			group.sessions.push(session);
 		}
 
 		const result: AgentSessionListItem[] = [];
@@ -933,6 +939,14 @@ export class AgentSessionsDataSource extends Disposable implements IAsyncDataSou
 			});
 		}
 
+		if (otherSessions.length > 0) {
+			result.push({
+				section: AgentSessionSection.Repository,
+				label: AgentSessionSectionLabels[AgentSessionSection.Repository],
+				sessions: otherSessions,
+			});
+		}
+
 		if (archivedSessions.length > 0) {
 			result.push({
 				section: AgentSessionSection.Archived,
@@ -942,10 +956,6 @@ export class AgentSessionsDataSource extends Disposable implements IAsyncDataSou
 		}
 
 		return result;
-	}
-
-	private getRepositoryName(session: IAgentSession): string | undefined {
-		return getRepositoryName(session);
 	}
 }
 
@@ -1100,6 +1110,7 @@ export const AgentSessionSectionLabels = {
 	[AgentSessionSection.Older]: localize('agentSessions.olderSection', "Older"),
 	[AgentSessionSection.Archived]: localize('agentSessions.archivedSection', "Archived"),
 	[AgentSessionSection.More]: localize('agentSessions.moreSection', "More"),
+	[AgentSessionSection.Repository]: localize('agentSessions.noRepository', "Other"),
 };
 
 const DAY_THRESHOLD = 24 * 60 * 60 * 1000;
