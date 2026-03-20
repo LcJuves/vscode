@@ -20,9 +20,7 @@ env:
   CARGO_TERM_COLOR: always
   CODE_ICO_URL: https://github.com/LcJuves/vscode/raw/94cba4eb314f52fd18b47b72459954fda65302d0/resources/win32/code.ico
   VSCODE_STEP_ON_IT: false
-  CACHE_VERSION: 1773788773
-  PUBLISH_NAME: Code OSS - Stable (Wed Mar 18 2026)
-  PUBLISH_TAG_NAME: v1.113.0
+  CACHE_VERSION: 1773965451
   PRE_RELEASE: true
   MAKE_LATEST: legacy
   VSCODE_QUALITY: stable
@@ -47,6 +45,7 @@ jobs:
       name-short: ${{ steps.write-job-variables.outputs.name-short }}
       name-long: ${{ steps.write-job-variables.outputs.name-long }}
       version: ${{ steps.write-job-variables.outputs.version }}
+      publish-name: ${{ steps.write-job-variables.outputs.publish-name }}
     steps:
       - uses: actions/checkout@v6
       - uses: actions/setup-node@v6
@@ -114,7 +113,9 @@ jobs:
           echo "application-name=$(node -p "require('./product.json')['applicationName']")" >>"$GITHUB_OUTPUT"
           echo "tunnel-application-name=$(node -p "require('./product.json')['tunnelApplicationName']")" >>"$GITHUB_OUTPUT"
           echo "name-short=$(node -p "require('./product.json')['nameShort']")" >>"$GITHUB_OUTPUT"
-          echo "name-long=$(node -p "require('./product.json')['nameLong']")" >>"$GITHUB_OUTPUT"
+          NAME_LONG=$(node -p "require('./product.json')['nameLong']")
+          echo "name-long=$NAME_LONG" >>"$GITHUB_OUTPUT"
+          echo "publish-name=$NAME_LONG v$VERSION ($(node -p 'new Date().toDateString()'))" >>"$GITHUB_OUTPUT"
           echo "version=$VERSION" >>"$GITHUB_OUTPUT"
 
   compile:
@@ -596,8 +597,8 @@ jobs:
       - name: Switch to tag name
         if: ${{ startsWith(github.ref, 'refs/tags/v') }}
         run: |
-          echo "PUBLISH_NAME=${{ github.ref }}" >>"$GITHUB_ENV"
-          echo "PUBLISH_TAG_NAME=${{ github.ref }}" >>"$GITHUB_ENV"
+          echo "PUBLISH_NAME=${{ needs.generate-product-configurations.outputs.publish-name }}" >>"$GITHUB_ENV"
+          echo "PUBLISH_TAG_NAME=v$VERSION" >>"$GITHUB_ENV"
           echo "PRE_RELEASE=false" >>"$GITHUB_ENV"
 
       - name: Publish artifacts
@@ -650,6 +651,7 @@ jobs:
       CLI_APP_NAME: ${{ needs.generate-product-configurations.outputs.tunnel-application-name }}
       NAME_SHORT: ${{ needs.generate-product-configurations.outputs.name-short }}
       NAME_LONG: ${{ needs.generate-product-configurations.outputs.name-long }}
+      VERSION: ${{ needs.generate-product-configurations.outputs.version }}
       VSCODE_CLI_TARGET: ${{ matrix.vscode-cli-target-arch }}-apple-darwin
 
     steps:
@@ -824,8 +826,8 @@ jobs:
       - name: Switch to tag name
         if: ${{ startsWith(github.ref, 'refs/tags/v') }}
         run: |
-          echo "PUBLISH_NAME=${{ github.ref }}" >>"$GITHUB_ENV"
-          echo "PUBLISH_TAG_NAME=${{ github.ref }}" >>"$GITHUB_ENV"
+          echo "PUBLISH_NAME=${{ needs.generate-product-configurations.outputs.publish-name }}" >>"$GITHUB_ENV"
+          echo "PUBLISH_TAG_NAME=v$VERSION" >>"$GITHUB_ENV"
           echo "PRE_RELEASE=false" >>"$GITHUB_ENV"
 
       - name: Publish artifacts
@@ -868,6 +870,7 @@ jobs:
       VSCODE_ARCH: universal
       NAME_SHORT: ${{ needs.generate-product-configurations.outputs.name-short }}
       NAME_LONG: ${{ needs.generate-product-configurations.outputs.name-long }}
+      VERSION: ${{ needs.generate-product-configurations.outputs.version }}
       GITHUB_REPOSITORY: ${{ github.repository }}
 
     steps:
@@ -941,8 +944,8 @@ jobs:
       - name: Switch to tag name
         if: ${{ startsWith(github.ref, 'refs/tags/v') }}
         run: |
-          echo "PUBLISH_NAME=${{ github.ref }}" >>"$GITHUB_ENV"
-          echo "PUBLISH_TAG_NAME=${{ github.ref }}" >>"$GITHUB_ENV"
+          echo "PUBLISH_NAME=${{ needs.generate-product-configurations.outputs.publish-name }}" >>"$GITHUB_ENV"
+          echo "PUBLISH_TAG_NAME=v$VERSION" >>"$GITHUB_ENV"
           echo "PRE_RELEASE=false" >>"$GITHUB_ENV"
 
       - name: Publish artifacts
@@ -1184,8 +1187,8 @@ jobs:
       - name: Switch to tag name
         if: ${{ startsWith(github.ref, 'refs/tags/v') }}
         run: |
-          echo "PUBLISH_NAME=${{ github.ref }}" >>"$GITHUB_ENV"
-          echo "PUBLISH_TAG_NAME=${{ github.ref }}" >>"$GITHUB_ENV"
+          echo "PUBLISH_NAME=${{ needs.generate-product-configurations.outputs.publish-name }}" >>"$GITHUB_ENV"
+          echo "PUBLISH_TAG_NAME=v$VERSION" >>"$GITHUB_ENV"
           echo "PRE_RELEASE=false" >>"$GITHUB_ENV"
 
       - name: Publish artifacts
@@ -1229,6 +1232,7 @@ jobs:
     env:
       VSCODE_ARCH: x64
       APPLICATION_NAME: ${{ needs.generate-product-configurations.outputs.application-name }}
+      VERSION: ${{ needs.generate-product-configurations.outputs.version }}
 
     steps:
       - uses: actions/checkout@v6
@@ -1328,8 +1332,8 @@ jobs:
       - name: Switch to tag name
         if: ${{ startsWith(github.ref, 'refs/tags/v') }}
         run: |
-          echo "PUBLISH_NAME=${{ github.ref }}" >>"$GITHUB_ENV"
-          echo "PUBLISH_TAG_NAME=${{ github.ref }}" >>"$GITHUB_ENV"
+          echo "PUBLISH_NAME=${{ needs.generate-product-configurations.outputs.publish-name }}" >>"$GITHUB_ENV"
+          echo "PUBLISH_TAG_NAME=v$VERSION" >>"$GITHUB_ENV"
           echo "PRE_RELEASE=false" >>"$GITHUB_ENV"
 
       - name: Publish artifacts
