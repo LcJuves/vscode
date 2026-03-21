@@ -1,7 +1,7 @@
 # This workflow will do a clean install of node dependencies, build the source code and run tests across different versions of node
 # For more information see: https://help.github.com/actions/language-and-framework-guides/using-nodejs-with-github-actions
 
-name: Code OSS CI
+name: Code OSS Dev
 
 on:
   push:
@@ -19,7 +19,7 @@ env:
   CARGO_TERM_COLOR: always
   CODE_ICO_URL: https://github.com/LcJuves/vscode/raw/94cba4eb314f52fd18b47b72459954fda65302d0/resources/win32/code.ico
   VSCODE_STEP_ON_IT: false
-  CACHE_TIMESTAMP: 1774069043
+  CACHE_TIMESTAMP: 1774077638
   PRE_RELEASE: true
   MAKE_LATEST: legacy
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
@@ -106,8 +106,7 @@ jobs:
           echo "application-name=$(node -p "require('./product.json')['applicationName']")" >>"$GITHUB_OUTPUT"
           echo "tunnel-application-name=$(node -p "require('./product.json')['tunnelApplicationName']")" >>"$GITHUB_OUTPUT"
           echo "name-short=$(node -p "require('./product.json')['nameShort']")" >>"$GITHUB_OUTPUT"
-          NAME_LONG=$(node -p "require('./product.json')['nameLong']")
-          echo "name-long=$NAME_LONG" >>"$GITHUB_OUTPUT"
+          echo "name-long=$(node -p "require('./product.json')['nameLong']")" >>"$GITHUB_OUTPUT"
           echo "version=$VERSION" >>"$GITHUB_OUTPUT"
 
   compile:
@@ -179,33 +178,39 @@ jobs:
         with:
           cache-version: ${{ env.CACHE_TIMESTAMP }}
 
+      - name: Compute compilation artifact cache key
+        id: compute-compilation-artifact-cache-key
+        run: echo "key=$(echo "OPENSSL_PREBUILT#$OPENSSL_PREBUILT_VERSION#$CACHE_TIMESTAMP" | sha512sum | awk '{print $1}')" >>"$GITHUB_OUTPUT"
+
+      - name: Cache compilation artifact
+        id: cache-compilation-artifact
+        uses: actions/cache@v5
+        with:
+          path: |
+            .build
+            out-*
+            test/integration/browser/out
+            test/smoke/out
+            test/automation/out
+            openssl
+            package/out
+          key: ${{ steps.compute-compilation-artifact-cache-key.outputs.key }}
+
+      - name: Extract openssl prebuilt
+        if: ${{ steps.cache-compilation-artifact.outputs.cache-hit != 'true' }}
+        run: |
+          npm pack @vscode/openssl-prebuilt@$OPENSSL_PREBUILT_VERSION
+          mkdir openssl
+          tar -xvzf vscode-openssl-prebuilt-$OPENSSL_PREBUILT_VERSION.tgz --strip-components=2 -C openssl package/out
+
       - name: Compile & Hygiene
+        if: ${{ steps.cache-compilation-artifact.outputs.cache-hit != 'true' }}
         timeout-minutes: 300
         run: |
           npm exec -- npm-run-all2 -lp \
               core-ci-pr hygiene eslint \
               valid-layers-check define-class-fields-check vscode-dts-compile-check \
               tsec-compile-check test-build-scripts
-
-      - name: Compute openssl prebuilt cache key
-        id: compute-openssl-prebuilt-cache-key
-        run: echo "key=$(echo "OPENSSL_PREBUILT#$OPENSSL_PREBUILT_VERSION#$CACHE_TIMESTAMP" | sha512sum | awk '{print $1}')" >>"$GITHUB_OUTPUT"
-
-      - name: Cache openssl prebuilt
-        id: cache-openssl-prebuilt
-        uses: actions/cache@v5
-        with:
-          path: |
-            openssl
-            package/out
-          key: ${{ steps.compute-openssl-prebuilt-cache-key.outputs.key }}
-
-      - name: Extract openssl prebuilt
-        if: ${{ steps.cache-openssl-prebuilt.outputs.cache-hit != 'true' }}
-        run: |
-          npm pack @vscode/openssl-prebuilt@$OPENSSL_PREBUILT_VERSION
-          mkdir openssl
-          tar -xvzf vscode-openssl-prebuilt-$OPENSSL_PREBUILT_VERSION.tgz --strip-components=2 -C openssl package/out
 
       - name: Compress compilation artifact
         run: |
@@ -230,15 +235,13 @@ jobs:
     strategy:
       fail-fast: true
       matrix:
+        vscode-quality: [stable, insider, exploration, oss]
         include:
-          - vscode-quality: [stable, insider, exploration, oss]
-            arch: x64
+          - arch: x64
             vscode-cli-target-arch: x86_64
-          - vscode-quality: [stable, insider, exploration, oss]
-            arch: arm64
+          - arch: arm64
             vscode-cli-target-arch: aarch64-unknown-linux-gnu
-          - vscode-quality: [stable, insider, exploration, oss]
-            arch: armhf
+          - arch: armhf
             vscode-cli-target-arch: armv7-unknown-linux-gnueabihf
     env:
       VSCODE_ARCH: ${{ matrix.arch }}
@@ -612,12 +615,11 @@ jobs:
     strategy:
       fail-fast: true
       matrix:
+        vscode-quality: [stable, insider, exploration, oss]
         include:
-          - vscode-quality: [stable, insider, exploration, oss]
-            arch: x64
+          - arch: x64
             vscode-cli-target-arch: x86_64
-          - vscode-quality: [stable, insider, exploration, oss]
-            arch: arm64
+          - arch: arm64
             vscode-cli-target-arch: aarch64
     env:
       VSCODE_ARCH: ${{ matrix.arch }}
@@ -930,14 +932,13 @@ jobs:
     strategy:
       fail-fast: true
       matrix:
+        vscode-quality: [stable, insider, exploration, oss]
         include:
-          - vscode-quality: [stable, insider, exploration, oss]
-            arch: x64
+          - arch: x64
             vscode-cli-target-arch: x86_64
             env:
               RUSTFLAGS: "-Ctarget-feature=+crt-static -Clink-args=/guard:cf -Clink-args=/CETCOMPAT"
-          - vscode-quality: [stable, insider, exploration, oss]
-            arch: arm64
+          - arch: arm64
             vscode-cli-target-arch: aarch64
             env:
               RUSTFLAGS: "-C target-feature=+crt-static -Clink-args=/guard:cf -Clink-args=/CETCOMPAT:NO"
