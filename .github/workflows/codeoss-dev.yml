@@ -243,12 +243,6 @@ jobs:
       matrix:
         vscode-quality: [stable, insider, exploration, oss]
         arch: [x64, arm64, armhf]
-        vscode-cli-target:
-          [
-            x86_64-unknown-linux-gnu,
-            aarch64-unknown-linux-gnu,
-            armv7-unknown-linux-gnueabihf,
-          ]
         include:
           - arch: x64
             vscode-cli-target: x86_64-unknown-linux-gnu
@@ -633,7 +627,6 @@ jobs:
       matrix:
         vscode-quality: [stable, insider, exploration, oss]
         arch: [x64, arm64]
-        vscode-cli-target-arch: [x86_64, aarch64]
         include:
           - arch: x64
             vscode-cli-target-arch: x86_64
@@ -952,7 +945,6 @@ jobs:
       matrix:
         vscode-quality: [stable, insider, exploration, oss]
         arch: [x64, arm64]
-        vscode-cli-target-arch: [x86_64, aarch64]
         include:
           - arch: x64
             vscode-cli-target-arch: x86_64
