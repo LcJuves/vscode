@@ -11,6 +11,13 @@ on:
     branches:
       - main
       - releases/**
+  schedule:
+    - cron: "0 5 * * Mon-Fri"
+    - cron: "0 17 * * Mon-Fri"
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
 
 env:
   GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -19,7 +26,7 @@ env:
   CARGO_TERM_COLOR: always
   CODE_ICO_URL: https://github.com/LcJuves/vscode/raw/94cba4eb314f52fd18b47b72459954fda65302d0/resources/win32/code.ico
   VSCODE_STEP_ON_IT: false
-  CACHE_TIMESTAMP: 1774077638
+  CACHE_TIMESTAMP: 1774098140
   PRE_RELEASE: true
   MAKE_LATEST: legacy
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
@@ -196,13 +203,6 @@ jobs:
             package/out
           key: ${{ steps.compute-compilation-artifact-cache-key.outputs.key }}
 
-      - name: Extract openssl prebuilt
-        if: ${{ steps.cache-compilation-artifact.outputs.cache-hit != 'true' }}
-        run: |
-          npm pack @vscode/openssl-prebuilt@$OPENSSL_PREBUILT_VERSION
-          mkdir openssl
-          tar -xvzf vscode-openssl-prebuilt-$OPENSSL_PREBUILT_VERSION.tgz --strip-components=2 -C openssl package/out
-
       - name: Compile & Hygiene
         if: ${{ steps.cache-compilation-artifact.outputs.cache-hit != 'true' }}
         timeout-minutes: 300
@@ -211,6 +211,13 @@ jobs:
               core-ci-pr hygiene eslint \
               valid-layers-check define-class-fields-check vscode-dts-compile-check \
               tsec-compile-check test-build-scripts
+
+      - name: Extract openssl prebuilt
+        if: ${{ steps.cache-compilation-artifact.outputs.cache-hit != 'true' }}
+        run: |
+          npm pack @vscode/openssl-prebuilt@$OPENSSL_PREBUILT_VERSION
+          mkdir openssl
+          tar -xvzf vscode-openssl-prebuilt-$OPENSSL_PREBUILT_VERSION.tgz --strip-components=1 -C openssl
 
       - name: Compress compilation artifact
         run: |
@@ -238,11 +245,11 @@ jobs:
         vscode-quality: [stable, insider, exploration, oss]
         include:
           - arch: x64
-            vscode-cli-target-arch: x86_64
+            vscode-cli-target: x86_64-unknown-linux-gnu
           - arch: arm64
-            vscode-cli-target-arch: aarch64-unknown-linux-gnu
+            vscode-cli-target: aarch64-unknown-linux-gnu
           - arch: armhf
-            vscode-cli-target-arch: armv7-unknown-linux-gnueabihf
+            vscode-cli-target: armv7-unknown-linux-gnueabihf
     env:
       VSCODE_ARCH: ${{ matrix.arch }}
       APPLICATION_NAME: ${{ needs.generate-product-configurations.outputs.application-name }}
