@@ -68,8 +68,6 @@ function generateProductJson() {
 		"*"
 	];
 	productJson["serverLicensePrompt"] = vsProductJson["serverLicensePrompt"];
-	// @ts-ignore
-	productJson["quality"] = vsProductJson["quality"];
 	productJson["linuxIconName"] = productJson["applicationName"];
 	// @ts-ignore
 	productJson["extensionsGallery"] = vsProductJson["extensionsGallery"];

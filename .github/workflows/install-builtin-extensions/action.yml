@@ -1,8 +1,8 @@
 name: "Install Built-in Extensions"
 description: "Install built-in extensions for CodeOSS CI"
 inputs:
-  cache-version:
-    description: "The cache version"
+  cache-spec-key:
+    description: "The cache spec key"
     required: true
 outputs:
   greeting:
@@ -25,7 +25,7 @@ runs:
       uses: actions/cache@v3
       with:
         path: ".build/builtInExtensions"
-        key: "builtin-extensions${{ steps.prepare-built-in-extensions-cache-key.outputs.key }}${{ inputs.cache-version }}"
+        key: "builtin-extensions${{ steps.prepare-built-in-extensions-cache-key.outputs.key }}${{ inputs.cache-spec-key }}"
 
     - name: Download built-in extensions
       if: ${{ steps.restore-built-in-extensions-cache.outputs.cache-hit != 'true' }}
