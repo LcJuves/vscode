@@ -26,7 +26,7 @@ env:
   CARGO_TERM_COLOR: always
   CODE_ICO_URL: https://github.com/LcJuves/vscode/raw/94cba4eb314f52fd18b47b72459954fda65302d0/resources/win32/code.ico
   VSCODE_STEP_ON_IT: false
-  CACHE_SPEC_KEY: ${{ github.sha }}
+  CACHE_SPEC_KEY: 1774121261
   PRE_RELEASE: true
   MAKE_LATEST: legacy
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
@@ -584,8 +584,8 @@ jobs:
       - name: Prepare publish name
         run: |
           DATE_STRING=$(node -p 'new Date().toDateString()')
-          PUBLISH_QUALITY=$(node -p 'const obj={"stable":"Stable","insider":"Insider","exploration":"Exploration","oss":"OSS"};obj["'$VSCODE_QUALITY'"]||"OSS"')
-          echo "PUBLISH-NAME=$NAME_LONG $PUBLISH_QUALITY v$VERSION ($DATE_STRING)" >>"$GITHUB_ENV"
+          PUBLISH_QUALITY=$(node -p 'const obj={"stable":"Stable","insider":"Insider","exploration":"Exploration"};" "+obj["'$VSCODE_QUALITY'"]||""')
+          echo "PUBLISH-NAME=$NAME_LONG$PUBLISH_QUALITY v$VERSION ($DATE_STRING)" >>"$GITHUB_ENV"
 
       - name: Publish artifacts
         uses: softprops/action-gh-release@v2.5.0
@@ -804,8 +804,8 @@ jobs:
       - name: Prepare publish name
         run: |
           DATE_STRING=$(node -p 'new Date().toDateString()')
-          PUBLISH_QUALITY=$(node -p 'const obj={"stable":"Stable","insider":"Insider","exploration":"Exploration","oss":"OSS"};obj["'$VSCODE_QUALITY'"]||"OSS"')
-          echo "PUBLISH-NAME=$NAME_LONG $PUBLISH_QUALITY v$VERSION ($DATE_STRING)" >>"$GITHUB_ENV"
+          PUBLISH_QUALITY=$(node -p 'const obj={"stable":"Stable","insider":"Insider","exploration":"Exploration"};" "+obj["'$VSCODE_QUALITY'"]||""')
+          echo "PUBLISH-NAME=$NAME_LONG$PUBLISH_QUALITY v$VERSION ($DATE_STRING)" >>"$GITHUB_ENV"
 
       - name: Publish artifacts
         uses: softprops/action-gh-release@v2.5.0
@@ -916,8 +916,8 @@ jobs:
       - name: Prepare publish name
         run: |
           DATE_STRING=$(node -p 'new Date().toDateString()')
-          PUBLISH_QUALITY=$(node -p 'const obj={"stable":"Stable","insider":"Insider","exploration":"Exploration","oss":"OSS"};obj["'$VSCODE_QUALITY'"]||"OSS"')
-          echo "PUBLISH-NAME=$NAME_LONG $PUBLISH_QUALITY v$VERSION ($DATE_STRING)" >>"$GITHUB_ENV"
+          PUBLISH_QUALITY=$(node -p 'const obj={"stable":"Stable","insider":"Insider","exploration":"Exploration"};" "+obj["'$VSCODE_QUALITY'"]||""')
+          echo "PUBLISH-NAME=$NAME_LONG$PUBLISH_QUALITY v$VERSION ($DATE_STRING)" >>"$GITHUB_ENV"
 
       - name: Publish artifacts
         uses: softprops/action-gh-release@v2.5.0
@@ -1153,8 +1153,8 @@ jobs:
       - name: Prepare publish name
         run: |
           DATE_STRING=$(node -p 'new Date().toDateString()')
-          PUBLISH_QUALITY=$(node -p 'const obj={"stable":"Stable","insider":"Insider","exploration":"Exploration","oss":"OSS"};obj["'$VSCODE_QUALITY'"]||"OSS"')
-          echo "PUBLISH-NAME=$NAME_LONG $PUBLISH_QUALITY v$VERSION ($DATE_STRING)" >>"$GITHUB_ENV"
+          PUBLISH_QUALITY=$(node -p 'const obj={"stable":"Stable","insider":"Insider","exploration":"Exploration"};" "+obj["'$VSCODE_QUALITY'"]||""')
+          echo "PUBLISH-NAME=$NAME_LONG$PUBLISH_QUALITY v$VERSION ($DATE_STRING)" >>"$GITHUB_ENV"
 
       - name: Publish artifacts
         uses: softprops/action-gh-release@v2.5.0
@@ -1290,8 +1290,8 @@ jobs:
       - name: Prepare publish name
         run: |
           DATE_STRING=$(node -p 'new Date().toDateString()')
-          PUBLISH_QUALITY=$(node -p 'const obj={"stable":"Stable","insider":"Insider","exploration":"Exploration","oss":"OSS"};obj["'$VSCODE_QUALITY'"]||"OSS"')
-          echo "PUBLISH-NAME=$NAME_LONG $PUBLISH_QUALITY v$VERSION ($DATE_STRING)" >>"$GITHUB_ENV"
+          PUBLISH_QUALITY=$(node -p 'const obj={"stable":"Stable","insider":"Insider","exploration":"Exploration"};" "+obj["'$VSCODE_QUALITY'"]||""')
+          echo "PUBLISH-NAME=$NAME_LONG$PUBLISH_QUALITY v$VERSION ($DATE_STRING)" >>"$GITHUB_ENV"
 
       - name: Publish artifacts
         uses: softprops/action-gh-release@v2.5.0
