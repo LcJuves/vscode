@@ -230,15 +230,16 @@ jobs:
     strategy:
       fail-fast: true
       matrix:
-        vscode-quality: [stable, insider, exploration, oss]
-        publish-quality: [Stable, Insider, Exploration, OSS]
-        arch: [x64, arm64, armhf]
-        vscode-cli-target:
-          [
-            x86_64-unknown-linux-gnu,
-            aarch64-unknown-linux-gnu,
-            armv7-unknown-linux-gnueabihf,
-          ]
+        include:
+          - vscode-quality: [stable, insider, exploration, oss]
+            arch: x64
+            vscode-cli-target-arch: x86_64
+          - vscode-quality: [stable, insider, exploration, oss]
+            arch: arm64
+            vscode-cli-target-arch: aarch64-unknown-linux-gnu
+          - vscode-quality: [stable, insider, exploration, oss]
+            arch: armhf
+            vscode-cli-target-arch: armv7-unknown-linux-gnueabihf
     env:
       VSCODE_ARCH: ${{ matrix.arch }}
       APPLICATION_NAME: ${{ needs.generate-product-configurations.outputs.application-name }}
@@ -248,7 +249,6 @@ jobs:
       VSCODE_CLI_TARGET: ${{ matrix.vscode-cli-target }}
       VSCODE_CIBUILD: false
       VSCODE_QUALITY: ${{ matrix.vscode-quality }}
-      PUBLISH_QUALITY: ${{ matrix.publish-quality }}
 
     steps:
       - uses: actions/checkout@v6
@@ -571,6 +571,7 @@ jobs:
       - name: Prepare publish name
         run: |
           DATE_STRING=$(node -p 'new Date().toDateString()')
+          PUBLISH_QUALITY=$(node -p 'const obj={"stable":"Stable","insider":"Insider","exploration":"Exploration","oss":"OSS"};obj["'$VSCODE_QUALITY'"]||"OSS"')
           echo "PUBLISH-NAME=$NAME_LONG $PUBLISH_QUALITY v$VERSION ($DATE_STRING)" >>"$GITHUB_ENV"
 
       - name: Publish artifacts
@@ -611,10 +612,13 @@ jobs:
     strategy:
       fail-fast: true
       matrix:
-        vscode-quality: [stable, insider, exploration, oss]
-        publish-quality: [Stable, Insider, Exploration, OSS]
-        arch: [x64, arm64]
-        vscode-cli-target-arch: [x86_64, aarch64]
+        include:
+          - vscode-quality: [stable, insider, exploration, oss]
+            arch: x64
+            vscode-cli-target-arch: x86_64
+          - vscode-quality: [stable, insider, exploration, oss]
+            arch: arm64
+            vscode-cli-target-arch: aarch64
     env:
       VSCODE_ARCH: ${{ matrix.arch }}
       APPLICATION_NAME: ${{ needs.generate-product-configurations.outputs.application-name }}
@@ -624,7 +628,6 @@ jobs:
       VERSION: ${{ needs.generate-product-configurations.outputs.version }}
       VSCODE_CLI_TARGET: ${{ matrix.vscode-cli-target-arch }}-apple-darwin
       VSCODE_QUALITY: ${{ matrix.vscode-quality }}
-      PUBLISH_QUALITY: ${{ matrix.publish-quality }}
 
     steps:
       - uses: actions/checkout@v6
@@ -788,6 +791,7 @@ jobs:
       - name: Prepare publish name
         run: |
           DATE_STRING=$(node -p 'new Date().toDateString()')
+          PUBLISH_QUALITY=$(node -p 'const obj={"stable":"Stable","insider":"Insider","exploration":"Exploration","oss":"OSS"};obj["'$VSCODE_QUALITY'"]||"OSS"')
           echo "PUBLISH-NAME=$NAME_LONG $PUBLISH_QUALITY v$VERSION ($DATE_STRING)" >>"$GITHUB_ENV"
 
       - name: Publish artifacts
@@ -823,7 +827,6 @@ jobs:
       fail-fast: true
       matrix:
         vscode-quality: [stable, insider, exploration, oss]
-        publish-quality: [Stable, Insider, Exploration, OSS]
         arch: [arm64]
     needs: [generate-product-configurations, build-macos]
     env:
@@ -833,7 +836,6 @@ jobs:
       VERSION: ${{ needs.generate-product-configurations.outputs.version }}
       GITHUB_REPOSITORY: ${{ github.repository }}
       VSCODE_QUALITY: ${{ matrix.vscode-quality }}
-      PUBLISH_QUALITY: ${{ matrix.publish-quality }}
 
     steps:
       - uses: actions/checkout@v6
@@ -901,6 +903,7 @@ jobs:
       - name: Prepare publish name
         run: |
           DATE_STRING=$(node -p 'new Date().toDateString()')
+          PUBLISH_QUALITY=$(node -p 'const obj={"stable":"Stable","insider":"Insider","exploration":"Exploration","oss":"OSS"};obj["'$VSCODE_QUALITY'"]||"OSS"')
           echo "PUBLISH-NAME=$NAME_LONG $PUBLISH_QUALITY v$VERSION ($DATE_STRING)" >>"$GITHUB_ENV"
 
       - name: Publish artifacts
@@ -927,14 +930,14 @@ jobs:
     strategy:
       fail-fast: true
       matrix:
-        vscode-quality: [stable, insider, exploration, oss]
-        publish-quality: [Stable, Insider, Exploration, OSS]
         include:
-          - arch: x64
+          - vscode-quality: [stable, insider, exploration, oss]
+            arch: x64
             vscode-cli-target-arch: x86_64
             env:
               RUSTFLAGS: "-Ctarget-feature=+crt-static -Clink-args=/guard:cf -Clink-args=/CETCOMPAT"
-          - arch: arm64
+          - vscode-quality: [stable, insider, exploration, oss]
+            arch: arm64
             vscode-cli-target-arch: aarch64
             env:
               RUSTFLAGS: "-C target-feature=+crt-static -Clink-args=/guard:cf -Clink-args=/CETCOMPAT:NO"
@@ -950,7 +953,6 @@ jobs:
       CFLAGS: "/guard:cf /Qspectre"
       VSCODE_CIBUILD: false
       VSCODE_QUALITY: ${{ matrix.vscode-quality }}
-      PUBLISH_QUALITY: ${{ matrix.publish-quality }}
 
     steps:
       - uses: actions/checkout@v6
@@ -1137,6 +1139,7 @@ jobs:
       - name: Prepare publish name
         run: |
           DATE_STRING=$(node -p 'new Date().toDateString()')
+          PUBLISH_QUALITY=$(node -p 'const obj={"stable":"Stable","insider":"Insider","exploration":"Exploration","oss":"OSS"};obj["'$VSCODE_QUALITY'"]||"OSS"')
           echo "PUBLISH-NAME=$NAME_LONG $PUBLISH_QUALITY v$VERSION ($DATE_STRING)" >>"$GITHUB_ENV"
 
       - name: Publish artifacts
@@ -1174,7 +1177,6 @@ jobs:
       fail-fast: true
       matrix:
         vscode-quality: [stable, insider, exploration, oss]
-        publish-quality: [Stable, Insider, Exploration, OSS]
         arch: [x64]
     needs: [generate-product-configurations, compile]
     env:
@@ -1182,7 +1184,6 @@ jobs:
       APPLICATION_NAME: ${{ needs.generate-product-configurations.outputs.application-name }}
       VERSION: ${{ needs.generate-product-configurations.outputs.version }}
       VSCODE_QUALITY: ${{ matrix.vscode-quality }}
-      PUBLISH_QUALITY: ${{ matrix.publish-quality }}
 
     steps:
       - uses: actions/checkout@v6
@@ -1274,6 +1275,7 @@ jobs:
       - name: Prepare publish name
         run: |
           DATE_STRING=$(node -p 'new Date().toDateString()')
+          PUBLISH_QUALITY=$(node -p 'const obj={"stable":"Stable","insider":"Insider","exploration":"Exploration","oss":"OSS"};obj["'$VSCODE_QUALITY'"]||"OSS"')
           echo "PUBLISH-NAME=$NAME_LONG $PUBLISH_QUALITY v$VERSION ($DATE_STRING)" >>"$GITHUB_ENV"
 
       - name: Publish artifacts
