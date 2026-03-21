@@ -200,7 +200,6 @@ jobs:
             test/smoke/out
             test/automation/out
             openssl
-            package/out
           key: ${{ steps.compute-compilation-artifact-cache-key.outputs.key }}
 
       - name: Compile & Hygiene
@@ -217,7 +216,7 @@ jobs:
         run: |
           npm pack @vscode/openssl-prebuilt@$OPENSSL_PREBUILT_VERSION
           mkdir openssl
-          tar -xvzf vscode-openssl-prebuilt-$OPENSSL_PREBUILT_VERSION.tgz --strip-components=1 -C openssl
+          tar -xvzf vscode-openssl-prebuilt-$OPENSSL_PREBUILT_VERSION.tgz --strip-components=2 -C openssl
 
       - name: Compress compilation artifact
         run: |
@@ -242,13 +241,15 @@ jobs:
     strategy:
       fail-fast: true
       matrix:
-        vscode-quality: [stable, insider, exploration, oss]
         include:
-          - arch: x64
+          - vscode-quality: [stable, insider, exploration, oss]
+            arch: x64
             vscode-cli-target: x86_64-unknown-linux-gnu
-          - arch: arm64
+          - vscode-quality: [stable, insider, exploration, oss]
+            arch: arm64
             vscode-cli-target: aarch64-unknown-linux-gnu
-          - arch: armhf
+          - vscode-quality: [stable, insider, exploration, oss]
+            arch: armhf
             vscode-cli-target: armv7-unknown-linux-gnueabihf
     env:
       VSCODE_ARCH: ${{ matrix.arch }}
@@ -622,11 +623,12 @@ jobs:
     strategy:
       fail-fast: true
       matrix:
-        vscode-quality: [stable, insider, exploration, oss]
         include:
-          - arch: x64
+          - vscode-quality: [stable, insider, exploration, oss]
+            arch: x64
             vscode-cli-target-arch: x86_64
-          - arch: arm64
+          - vscode-quality: [stable, insider, exploration, oss]
+            arch: arm64
             vscode-cli-target-arch: aarch64
     env:
       VSCODE_ARCH: ${{ matrix.arch }}
@@ -939,13 +941,14 @@ jobs:
     strategy:
       fail-fast: true
       matrix:
-        vscode-quality: [stable, insider, exploration, oss]
         include:
-          - arch: x64
+          - vscode-quality: [stable, insider, exploration, oss]
+            arch: x64
             vscode-cli-target-arch: x86_64
             env:
               RUSTFLAGS: "-Ctarget-feature=+crt-static -Clink-args=/guard:cf -Clink-args=/CETCOMPAT"
-          - arch: arm64
+          - vscode-quality: [stable, insider, exploration, oss]
+            arch: arm64
             vscode-cli-target-arch: aarch64
             env:
               RUSTFLAGS: "-C target-feature=+crt-static -Clink-args=/guard:cf -Clink-args=/CETCOMPAT:NO"
