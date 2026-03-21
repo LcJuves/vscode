@@ -19,7 +19,7 @@ env:
   CARGO_TERM_COLOR: always
   CODE_ICO_URL: https://github.com/LcJuves/vscode/raw/94cba4eb314f52fd18b47b72459954fda65302d0/resources/win32/code.ico
   VSCODE_STEP_ON_IT: false
-  CACHE_TIMESTAMP: 1774044350
+  CACHE_TIMESTAMP: 1774063020
   PRE_RELEASE: true
   MAKE_LATEST: legacy
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
@@ -246,11 +246,13 @@ jobs:
         include:
           - arch: x64
             vscode-cli-target: x86_64-unknown-linux-gnu
+            vscode-quality: [stable, insider, exploration, oss]
           - arch: arm64
             vscode-cli-target: aarch64-unknown-linux-gnu
+            vscode-quality: [stable, insider, exploration, oss]
           - arch: armhf
             vscode-cli-target: armv7-unknown-linux-gnueabihf
-        vscode-quality: [stable, insider, exploration, oss]
+            vscode-quality: [stable, insider, exploration, oss]
     env:
       VSCODE_ARCH: ${{ matrix.arch }}
       APPLICATION_NAME: ${{ needs.generate-product-configurations.outputs.application-name }}
@@ -635,9 +637,10 @@ jobs:
         include:
           - arch: x64
             vscode-cli-target-arch: x86_64
+            vscode-quality: [stable, insider, exploration, oss]
           - arch: arm64
             vscode-cli-target-arch: aarch64
-        vscode-quality: [stable, insider, exploration, oss]
+            vscode-quality: [stable, insider, exploration, oss]
     env:
       VSCODE_ARCH: ${{ matrix.arch }}
       APPLICATION_NAME: ${{ needs.generate-product-configurations.outputs.application-name }}
@@ -959,11 +962,12 @@ jobs:
             vscode-cli-target-arch: x86_64
             env:
               RUSTFLAGS: "-Ctarget-feature=+crt-static -Clink-args=/guard:cf -Clink-args=/CETCOMPAT"
+            vscode-quality: [stable, insider, exploration, oss]
           - arch: arm64
             vscode-cli-target-arch: aarch64
             env:
               RUSTFLAGS: "-C target-feature=+crt-static -Clink-args=/guard:cf -Clink-args=/CETCOMPAT:NO"
-        vscode-quality: [stable, insider, exploration, oss]
+            vscode-quality: [stable, insider, exploration, oss]
 
     env:
       VSCODE_ARCH: ${{ matrix.arch }}
