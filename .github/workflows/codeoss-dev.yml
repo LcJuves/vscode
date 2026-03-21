@@ -30,6 +30,7 @@ env:
   PRE_RELEASE: true
   MAKE_LATEST: legacy
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+  ACTIONS_ALLOW_USE_UNSECURE_NODE_VERSION: true
 
 defaults:
   run:
@@ -585,12 +586,12 @@ jobs:
         run: |
           DATE_STRING=$(node -p 'new Date().toDateString()')
           PUBLISH_QUALITY=$(node -p 'const obj={"stable":"Stable","insider":"Insider","exploration":"Exploration"};" "+obj["'$VSCODE_QUALITY'"]||""')
-          echo "PUBLISH-NAME=$NAME_LONG$PUBLISH_QUALITY v$VERSION ($DATE_STRING)" >>"$GITHUB_ENV"
+          echo "PUBLISH_NAME=$NAME_LONG$PUBLISH_QUALITY v$VERSION ($DATE_STRING)" >>"$GITHUB_ENV"
 
       - name: Publish artifacts
         uses: softprops/action-gh-release@v2.5.0
         with:
-          name: ${{ env.PUBLISH-NAME }}
+          name: ${{ env.PUBLISH_NAME }}
           tag_name: v${{ env.VERSION }}-${{ env.VSCODE_QUALITY }}
           prerelease: ${{ env.PRE_RELEASE }}
           make_latest: ${{ env.MAKE_LATEST }}
@@ -805,12 +806,12 @@ jobs:
         run: |
           DATE_STRING=$(node -p 'new Date().toDateString()')
           PUBLISH_QUALITY=$(node -p 'const obj={"stable":"Stable","insider":"Insider","exploration":"Exploration"};" "+obj["'$VSCODE_QUALITY'"]||""')
-          echo "PUBLISH-NAME=$NAME_LONG$PUBLISH_QUALITY v$VERSION ($DATE_STRING)" >>"$GITHUB_ENV"
+          echo "PUBLISH_NAME=$NAME_LONG$PUBLISH_QUALITY v$VERSION ($DATE_STRING)" >>"$GITHUB_ENV"
 
       - name: Publish artifacts
         uses: softprops/action-gh-release@v2.5.0
         with:
-          name: ${{ env.PUBLISH-NAME }}
+          name: ${{ env.PUBLISH_NAME }}
           tag_name: v${{ env.VERSION }}-${{ env.VSCODE_QUALITY }}
           prerelease: ${{ env.PRE_RELEASE }}
           make_latest: ${{ env.MAKE_LATEST }}
@@ -875,6 +876,8 @@ jobs:
 
       - name: Create Universal App
         run: |
+          PUBLISH_TAG_NAME="v$VERSION-$VSCODE_QUALITY"
+          echo "ZIP_NAME=$ZIP_NAME" >>"$GITHUB_ENV"
           AGENT_BUILDDIRECTORY="$(cd .. && pwd)"
           DOWNLOAD_URL_PREFIX="https://github.com/$GITHUB_REPOSITORY/releases/download/$PUBLISH_TAG_NAME"
           curl -L -O -s "$DOWNLOAD_URL_PREFIX/$NAME_SHORT-darwin-arm64.tar.xz"
@@ -917,13 +920,13 @@ jobs:
         run: |
           DATE_STRING=$(node -p 'new Date().toDateString()')
           PUBLISH_QUALITY=$(node -p 'const obj={"stable":"Stable","insider":"Insider","exploration":"Exploration"};" "+obj["'$VSCODE_QUALITY'"]||""')
-          echo "PUBLISH-NAME=$NAME_LONG$PUBLISH_QUALITY v$VERSION ($DATE_STRING)" >>"$GITHUB_ENV"
+          echo "PUBLISH_NAME=$NAME_LONG$PUBLISH_QUALITY v$VERSION ($DATE_STRING)" >>"$GITHUB_ENV"
 
       - name: Publish artifacts
         uses: softprops/action-gh-release@v2.5.0
         with:
-          name: ${{ env.PUBLISH-NAME }}
-          tag_name: v${{ env.VERSION }}-${{ env.VSCODE_QUALITY }}
+          name: ${{ env.PUBLISH_NAME }}
+          tag_name: ${{ env.PUBLISH_TAG_NAME }}
           prerelease: ${{ env.PRE_RELEASE }}
           make_latest: ${{ env.MAKE_LATEST }}
           target_commitish: ${{ github.sha }}
@@ -1154,12 +1157,12 @@ jobs:
         run: |
           DATE_STRING=$(node -p 'new Date().toDateString()')
           PUBLISH_QUALITY=$(node -p 'const obj={"stable":"Stable","insider":"Insider","exploration":"Exploration"};" "+obj["'$VSCODE_QUALITY'"]||""')
-          echo "PUBLISH-NAME=$NAME_LONG$PUBLISH_QUALITY v$VERSION ($DATE_STRING)" >>"$GITHUB_ENV"
+          echo "PUBLISH_NAME=$NAME_LONG$PUBLISH_QUALITY v$VERSION ($DATE_STRING)" >>"$GITHUB_ENV"
 
       - name: Publish artifacts
         uses: softprops/action-gh-release@v2.5.0
         with:
-          name: ${{ env.PUBLISH-NAME }}
+          name: ${{ env.PUBLISH_NAME }}
           tag_name: v${{ env.VERSION }}-${{ env.VSCODE_QUALITY }}
           prerelease: ${{ env.PRE_RELEASE }}
           make_latest: ${{ env.MAKE_LATEST }}
@@ -1291,12 +1294,12 @@ jobs:
         run: |
           DATE_STRING=$(node -p 'new Date().toDateString()')
           PUBLISH_QUALITY=$(node -p 'const obj={"stable":"Stable","insider":"Insider","exploration":"Exploration"};" "+obj["'$VSCODE_QUALITY'"]||""')
-          echo "PUBLISH-NAME=$NAME_LONG$PUBLISH_QUALITY v$VERSION ($DATE_STRING)" >>"$GITHUB_ENV"
+          echo "PUBLISH_NAME=$NAME_LONG$PUBLISH_QUALITY v$VERSION ($DATE_STRING)" >>"$GITHUB_ENV"
 
       - name: Publish artifacts
         uses: softprops/action-gh-release@v2.5.0
         with:
-          name: ${{ env.PUBLISH-NAME }}
+          name: ${{ env.PUBLISH_NAME }}
           tag_name: v${{ env.VERSION }}-${{ env.VSCODE_QUALITY }}
           prerelease: ${{ env.PRE_RELEASE }}
           make_latest: ${{ env.MAKE_LATEST }}
