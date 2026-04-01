@@ -26,10 +26,9 @@ env:
   CARGO_TERM_COLOR: always
   CODE_ICO_URL: https://github.com/LcJuves/vscode/raw/94cba4eb314f52fd18b47b72459954fda65302d0/resources/win32/code.ico
   VSCODE_STEP_ON_IT: false
-  CACHE_SPEC_KEY: 1774121261
+  CACHE_SPEC_KEY: 1775030525
   PRE_RELEASE: true
   MAKE_LATEST: legacy
-  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
   ACTIONS_ALLOW_USE_UNSECURE_NODE_VERSION: true
 
 defaults:
@@ -211,6 +210,9 @@ jobs:
               core-ci-pr hygiene eslint \
               valid-layers-check define-class-fields-check vscode-dts-compile-check \
               tsec-compile-check test-build-scripts
+
+      - name: Check cyclic dependencies
+        run: node build/lib/checkCyclicDependencies.ts out-build
 
       - name: Extract openssl prebuilt
         if: ${{ steps.cache-compilation-artifact.outputs.cache-hit != 'true' }}
