@@ -248,5 +248,6 @@
   },
   "optionalDependencies": {
     "windows-foreground-love": "0.6.1"
-  }
+  },
+  "codeossVersion": "2026.4.2"
 }
