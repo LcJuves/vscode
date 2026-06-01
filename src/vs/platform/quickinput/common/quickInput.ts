@@ -12,6 +12,7 @@ import { IItemAccessor } from '../../../base/common/fuzzyScorer.js';
 import { ResolvedKeybinding } from '../../../base/common/keybindings.js';
 import { IDisposable } from '../../../base/common/lifecycle.js';
 import { Schemas } from '../../../base/common/network.js';
+import { IObservable } from '../../../base/common/observable.js';
 import Severity from '../../../base/common/severity.js';
 import { URI } from '../../../base/common/uri.js';
 import { IMarkdownString } from '../../../base/common/htmlContent.js';
@@ -207,6 +208,13 @@ export interface IPickOptions<T extends IQuickPickItem> {
 	 */
 	anchor?: unknown /* HTMLElement */ | { x: number; y: number };
 
+	/**
+	 * Placement of the quick input relative to {@link anchor}.
+	 * `'overlay'` positions the input box directly on top of the anchor (which must be an HTMLElement)
+	 * and auto-sizes its width to match. Defaults to `'above'`.
+	 */
+	anchorPosition?: 'above' | 'overlay';
+
 	onKeyMods?: (keyMods: IKeyMods) => void;
 	onDidFocus?: (entry: T) => void;
 	onDidTriggerItemButton?: (context: IQuickPickItemButtonContext<T>) => void;
@@ -367,6 +375,13 @@ export interface IQuickInput extends IDisposable {
 	 * An optional anchor for the quick input.
 	 */
 	anchor?: unknown /* HTMLElement */ | { x: number; y: number };
+
+	/**
+	 * Placement of the quick input relative to {@link anchor}.
+	 * `'overlay'` positions the input box directly on top of the anchor (which must be an HTMLElement)
+	 * and auto-sizes its width to match. Defaults to `'above'`.
+	 */
+	anchorPosition?: 'above' | 'overlay';
 
 	/**
 	 * Shows the quick input.
@@ -934,6 +949,8 @@ export const IQuickInputService = createDecorator<IQuickInputService>('quickInpu
 
 export type Omit<T, K extends keyof T> = Pick<T, Exclude<keyof T, K>>;
 
+export type QuickInputAlignment = 'top' | 'center' | 'custom';
+
 export interface IQuickInputService {
 
 	readonly _serviceBrand: undefined;
@@ -957,6 +974,11 @@ export interface IQuickInputService {
 	 * Allows to register on the event that quick input is hiding.
 	 */
 	readonly onHide: Event<void>;
+
+	/**
+	 * The current alignment of the quick input widget.
+	 */
+	readonly alignment: IObservable<QuickInputAlignment>;
 
 	/**
 	 * Opens the quick input box for selecting items and returns a promise
