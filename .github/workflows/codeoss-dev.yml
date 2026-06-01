@@ -207,7 +207,7 @@ jobs:
         timeout-minutes: 300
         run: |
           npm exec -- npm-run-all2 -lp \
-              core-ci-pr hygiene eslint \
+              core-ci hygiene eslint \
               valid-layers-check define-class-fields-check vscode-dts-compile-check \
               tsec-compile-check test-build-scripts
 
