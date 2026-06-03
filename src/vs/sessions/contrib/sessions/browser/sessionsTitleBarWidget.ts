@@ -31,23 +31,21 @@ import { ISessionsListModelService } from './views/sessionsListModelService.js';
 import { SHOW_SESSIONS_PICKER_COMMAND_ID } from './sessionsActions.js';
 import { IsSessionArchivedContext, IsSessionPinnedContext, IsSessionReadContext, SessionItemContextMenuId, SessionItemHasBranchNameContext } from './views/sessionsList.js';
 import { ISessionsManagementService } from '../../../services/sessions/common/sessionsManagement.js';
-import { renderLabelWithIcons } from '../../../../base/browser/ui/iconLabel/iconLabels.js';
 import { IMarkdownString, MarkdownString } from '../../../../base/common/htmlContent.js';
-import { buildSessionHoverContent, getSessionDiffStats } from './sessionHoverContent.js';
+import { buildSessionHoverContent } from './sessionHoverContent.js';
 
 const titleBarContextKeys = new Set([IsNewChatSessionContext.key]);
 
 /**
- * Sessions Title Bar Widget - renders the active chat session title
+ * Sessions Title Bar Widget - renders the active chat session
  * in the command center of the agent sessions workbench.
  *
- * Shows the current chat session label as a clickable pill with:
+ * Shows the current chat session as a clickable pill with:
  * - Kind icon at the beginning (provider type icon)
- * - Session title
  * - Repository folder name and active branch/worktree name when available
  *
  * Session actions (changes, terminal, etc.) are rendered via the
- * SessionTitleActions menu toolbar next to the session title.
+ * SessionTitleActions menu toolbar next to this widget.
  *
  * On click, opens the sessions picker.
  */
@@ -76,14 +74,12 @@ export class SessionsTitleBarWidget extends BaseActionViewItem {
 	) {
 		super(undefined, action, options);
 
-		// Re-render when the active session or its data changes
+		// Re-render when the active session's title or workspace changes
 		this._register(autorun(reader => {
 			const sessionData = this.sessionsManagementService.activeSession.read(reader);
 			if (sessionData) {
 				sessionData.title.read(reader);
-				sessionData.status.read(reader);
 				sessionData.workspace.read(reader);
-				sessionData.changes.read(reader);
 			}
 			this._lastRenderState = undefined;
 			this._render();
@@ -151,14 +147,12 @@ export class SessionsTitleBarWidget extends BaseActionViewItem {
 				return;
 			}
 
-			const label = this._getActiveSessionLabel();
 			const icon = this._getActiveSessionIcon();
-			const repoLabel = this._getRepositoryLabel();
-			const repoBranchLabel = this._getRepositoryBranchLabel();
-			const diffStats = this._getDiffStats();
+			const sessionTitle = this._getSessionTitle();
+			const workspaceLabel = this._getRepositoryLabel();
 
 			// Build a render-state key from all displayed data
-			const renderState = `${icon?.id ?? ''}|${label}|${repoLabel ?? ''}|${repoBranchLabel ?? ''}|${diffStats ? `${diffStats.insertions}/${diffStats.deletions}` : ''}`;
+			const renderState = `${icon?.id ?? ''}|${sessionTitle ?? ''}|${workspaceLabel ?? ''}`;
 
 			// Skip re-render if state hasn't changed
 			if (this._lastRenderState === renderState) {
@@ -176,10 +170,10 @@ export class SessionsTitleBarWidget extends BaseActionViewItem {
 			this._container.setAttribute('aria-label', localize('agentSessionsShowSessions', "Show Sessions"));
 			this._container.tabIndex = 0;
 
-			// Session pill: icon + label + folder together
+			// Session pill: icon + title + workspace together
 			const sessionPill = $('div.agent-sessions-titlebar-pill');
 
-			// Center group: icon + label + folder
+			// Center group: icon + title + workspace name
 			const centerGroup = $('div.agent-sessions-titlebar-center');
 
 			// Kind icon at the beginning
@@ -188,43 +182,21 @@ export class SessionsTitleBarWidget extends BaseActionViewItem {
 				centerGroup.appendChild(iconEl);
 			}
 
-			// Label
-			const labelEl = $('div.agent-sessions-titlebar-label');
-			labelEl.textContent = label;
-			centerGroup.appendChild(labelEl);
+			// Session title shown next to the icon
+			if (sessionTitle) {
+				const titleEl = $('div.agent-sessions-titlebar-title');
+				titleEl.textContent = sessionTitle;
+				centerGroup.appendChild(titleEl);
+			}
 
-			// Folder shown next to the title
-			if (repoLabel) {
-				const detailsEl = $('div.agent-sessions-titlebar-details');
+			// Workspace name shown after the session title
+			if (workspaceLabel) {
+				const separatorEl = $('div.agent-sessions-titlebar-separator');
+				centerGroup.appendChild(separatorEl);
 
-				const repoEl = $('div.agent-sessions-titlebar-repo');
-				repoEl.textContent = repoLabel;
-				detailsEl.appendChild(repoEl);
-
-				if (repoBranchLabel) {
-					const separatorEl = $('div.agent-sessions-titlebar-separator');
-					detailsEl.appendChild(separatorEl);
-
-					const branchEl = $('div.agent-sessions-titlebar-branch');
-					branchEl.append(...renderLabelWithIcons(`$(git-branch) ${repoBranchLabel}`));
-					detailsEl.appendChild(branchEl);
-				}
-
-				if (diffStats) {
-					const separatorEl = $('div.agent-sessions-titlebar-separator');
-					detailsEl.appendChild(separatorEl);
-
-					const diffEl = $('div.agent-sessions-titlebar-diff');
-					const addedEl = $('span.agent-sessions-titlebar-diff-added');
-					addedEl.textContent = `+${diffStats.insertions}`;
-					diffEl.appendChild(addedEl);
-					const removedEl = $('span.agent-sessions-titlebar-diff-removed');
-					removedEl.textContent = `-${diffStats.deletions}`;
-					diffEl.appendChild(removedEl);
-					detailsEl.appendChild(diffEl);
-				}
-
-				centerGroup.appendChild(detailsEl);
+				const workspaceEl = $('div.agent-sessions-titlebar-workspace');
+				workspaceEl.textContent = workspaceLabel;
+				centerGroup.appendChild(workspaceEl);
 			}
 
 			sessionPill.appendChild(centerGroup);
@@ -269,17 +241,6 @@ export class SessionsTitleBarWidget extends BaseActionViewItem {
 	}
 
 	/**
-	 * Get the label of the active chat session.
-	 */
-	private _getActiveSessionLabel(): string {
-		const sessionData = this.sessionsManagementService.activeSession.get();
-		if (sessionData) {
-			return sessionData.title.get() || localize('agentSessions.newSession', "New Session");
-		}
-		return localize('agentSessions.newSession', "New Session");
-	}
-
-	/**
 	 * Get the icon for the active session's type.
 	 */
 	private _getActiveSessionIcon(): ThemeIcon | undefined {
@@ -302,6 +263,14 @@ export class SessionsTitleBarWidget extends BaseActionViewItem {
 	}
 
 	/**
+	 * Get the display title for the active session.
+	 */
+	private _getSessionTitle(): string | undefined {
+		const sessionData = this.sessionsManagementService.activeSession.get();
+		return sessionData?.title.get()?.trim() || undefined;
+	}
+
+	/**
 	 * Get the repository label for the active session.
 	 */
 	private _getRepositoryLabel(): string | undefined {
@@ -313,23 +282,6 @@ export class SessionsTitleBarWidget extends BaseActionViewItem {
 			}
 		}
 		return undefined;
-	}
-
-	/**
-	 * Get the branch label for the active session.
-	 */
-	private _getRepositoryBranchLabel(): string | undefined {
-		const sessionData = this.sessionsManagementService.activeSession.get();
-		return sessionData?.workspace.get()?.folders[0]?.gitRepository?.branchName?.trim() || undefined;
-	}
-
-	/**
-	 * Get the aggregated insertions/deletions for the active session, or
-	 * undefined when there are no changes.
-	 */
-	private _getDiffStats(): { insertions: number; deletions: number } | undefined {
-		const sessionData = this.sessionsManagementService.activeSession.get();
-		return sessionData ? getSessionDiffStats(sessionData) : undefined;
 	}
 
 	private _showContextMenu(e: MouseEvent): void {
