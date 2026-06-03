@@ -118,7 +118,7 @@ jobs:
 
   compile:
     name: Compile
-    runs-on: ubuntu-latest-m
+    runs-on: ubuntu-latest
     strategy:
       fail-fast: true
       matrix:
