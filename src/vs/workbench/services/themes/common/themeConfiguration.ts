@@ -16,7 +16,7 @@ import { ThemeSettings, IWorkbenchColorTheme, IWorkbenchFileIconTheme, IColorCus
 import { IConfigurationService, ConfigurationTarget } from '../../../../platform/configuration/common/configuration.js';
 import { ColorScheme } from '../../../../platform/theme/common/theme.js';
 import { IHostColorSchemeService } from './hostColorSchemeService.js';
-import { isWeb } from 'vs/base/common/platform';
+import { isWeb } from '../../../../base/common/platform.js';
 
 // Configuration: Themes
 const configurationRegistry = Registry.as<IConfigurationRegistry>(ConfigurationExtensions.Configuration);

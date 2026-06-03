@@ -424,8 +424,7 @@ jobs:
           echo "::group::Compile CLI ($VSCODE_CLI_TARGET)"
           export OPENSSL_LIB_DIR="$PWD/openssl/${OPENSSL_ARCH}-linux/lib"
           export OPENSSL_INCLUDE_DIR="$PWD/openssl/${OPENSSL_ARCH}-linux/include"
-          cd cli || exit
-          cargo build --release --target "$VSCODE_CLI_TARGET" --bin=code
+          (cd cli && cargo build --release --target "$VSCODE_CLI_TARGET" --bin=code)
           cd "$GITHUB_WORKSPACE" || exit
           mv cli/target/"$VSCODE_CLI_TARGET"/release/code ../$DEFAULT_BUILD/bin/"$CLI_APP_NAME"
           echo "::endgroup::"
