@@ -50,6 +50,7 @@ jobs:
       name-short: ${{ steps.write-job-variables.outputs.name-short }}
       name-long: ${{ steps.write-job-variables.outputs.name-long }}
       version: ${{ steps.write-job-variables.outputs.version }}
+      codeoss-version: ${{ steps.write-job-variables.outputs.codeoss-version }}
     steps:
       - uses: actions/checkout@v6
       - uses: actions/setup-node@v6
@@ -63,8 +64,10 @@ jobs:
           curl -H "Accept: application/vnd.github.v3+json" -s $GITHUB_API_URL >releases.json
           # shellcheck disable=SC2034
           REMOTE_VERSION=$(node -p "require('./releases.json')[0]['tag_name']")
-          VERSION=$(node -p "require('./package.json')['codeossVersion']")
+          VERSION=$(node -p "require('./package.json')['version']")
           echo "VERSION=$VERSION" >>"$GITHUB_ENV"
+          CODEOSS_VERSION=$(node -p "require('./package.json')['codeossVersion']")
+          echo "CODEOSS_VERSION=$CODEOSS_VERSION" >>"$GITHUB_ENV"
 
           UNIVERSAL_ZIP_VERSION=$VERSION
           [ "$GITHUB_REF_NAME" == "dev/real-time-synchronization" ] && UNIVERSAL_ZIP_VERSION=$REMOTE_VERSION
@@ -115,6 +118,7 @@ jobs:
           echo "name-short=$(node -p "require('./product.json')['nameShort']")" >>"$GITHUB_OUTPUT"
           echo "name-long=$(node -p "require('./product.json')['nameLong']")" >>"$GITHUB_OUTPUT"
           echo "version=$VERSION" >>"$GITHUB_OUTPUT"
+          echo "codeoss-version=$CODEOSS_VERSION" >>"$GITHUB_OUTPUT"
 
   compile:
     name: Compile
@@ -260,6 +264,7 @@ jobs:
       NAME_SHORT: ${{ needs.generate-product-configurations.outputs.name-short }}
       NAME_LONG: ${{ needs.generate-product-configurations.outputs.name-long }}
       VERSION: ${{ needs.generate-product-configurations.outputs.version }}
+      CODEOSS_VERSION: ${{ needs.generate-product-configurations.outputs.codeoss-version }}
       VSCODE_CLI_TARGET: ${{ matrix.vscode-cli-target }}
       VSCODE_CIBUILD: false
       VSCODE_QUALITY: ${{ matrix.vscode-quality }}
@@ -587,13 +592,13 @@ jobs:
         run: |
           DATE_STRING=$(node -p 'new Date().toDateString()')
           PUBLISH_QUALITY=$(node -p 'const obj={"stable":"Stable","insider":"Insider","exploration":"Exploration"};" "+obj["'$VSCODE_QUALITY'"]||""')
-          echo "PUBLISH_NAME=$NAME_LONG$PUBLISH_QUALITY $VERSION ($DATE_STRING)" >>"$GITHUB_ENV"
+          echo "PUBLISH_NAME=$NAME_LONG$PUBLISH_QUALITY $CODEOSS_VERSION ($DATE_STRING)" >>"$GITHUB_ENV"
 
       - name: Publish artifacts
         uses: softprops/action-gh-release@v2.5.0
         with:
           name: ${{ env.PUBLISH_NAME }}
-          tag_name: v${{ env.VERSION }}-${{ env.VSCODE_QUALITY }}
+          tag_name: v${{ env.CODEOSS_VERSION }}-${{ env.VSCODE_QUALITY }}
           prerelease: ${{ env.PRE_RELEASE }}
           make_latest: ${{ env.MAKE_LATEST }}
           target_commitish: ${{ github.sha }}
@@ -641,6 +646,7 @@ jobs:
       NAME_SHORT: ${{ needs.generate-product-configurations.outputs.name-short }}
       NAME_LONG: ${{ needs.generate-product-configurations.outputs.name-long }}
       VERSION: ${{ needs.generate-product-configurations.outputs.version }}
+      CODEOSS_VERSION: ${{ needs.generate-product-configurations.outputs.codeoss-version }}
       VSCODE_CLI_TARGET: ${{ matrix.vscode-cli-target-arch }}-apple-darwin
       VSCODE_QUALITY: ${{ matrix.vscode-quality }}
 
@@ -807,13 +813,13 @@ jobs:
         run: |
           DATE_STRING=$(node -p 'new Date().toDateString()')
           PUBLISH_QUALITY=$(node -p 'const obj={"stable":"Stable","insider":"Insider","exploration":"Exploration"};" "+obj["'$VSCODE_QUALITY'"]||""')
-          echo "PUBLISH_NAME=$NAME_LONG$PUBLISH_QUALITY $VERSION ($DATE_STRING)" >>"$GITHUB_ENV"
+          echo "PUBLISH_NAME=$NAME_LONG$PUBLISH_QUALITY $CODEOSS_VERSION ($DATE_STRING)" >>"$GITHUB_ENV"
 
       - name: Publish artifacts
         uses: softprops/action-gh-release@v2.5.0
         with:
           name: ${{ env.PUBLISH_NAME }}
-          tag_name: v${{ env.VERSION }}-${{ env.VSCODE_QUALITY }}
+          tag_name: v${{ env.CODEOSS_VERSION }}-${{ env.VSCODE_QUALITY }}
           prerelease: ${{ env.PRE_RELEASE }}
           make_latest: ${{ env.MAKE_LATEST }}
           target_commitish: ${{ github.sha }}
@@ -849,6 +855,7 @@ jobs:
       NAME_SHORT: ${{ needs.generate-product-configurations.outputs.name-short }}
       NAME_LONG: ${{ needs.generate-product-configurations.outputs.name-long }}
       VERSION: ${{ needs.generate-product-configurations.outputs.version }}
+      CODEOSS_VERSION: ${{ needs.generate-product-configurations.outputs.codeoss-version }}
       GITHUB_REPOSITORY: ${{ github.repository }}
       VSCODE_QUALITY: ${{ matrix.vscode-quality }}
 
@@ -921,13 +928,13 @@ jobs:
         run: |
           DATE_STRING=$(node -p 'new Date().toDateString()')
           PUBLISH_QUALITY=$(node -p 'const obj={"stable":"Stable","insider":"Insider","exploration":"Exploration"};" "+obj["'$VSCODE_QUALITY'"]||""')
-          echo "PUBLISH_NAME=$NAME_LONG$PUBLISH_QUALITY $VERSION ($DATE_STRING)" >>"$GITHUB_ENV"
+          echo "PUBLISH_NAME=$NAME_LONG$PUBLISH_QUALITY $CODEOSS_VERSION ($DATE_STRING)" >>"$GITHUB_ENV"
 
       - name: Publish artifacts
         uses: softprops/action-gh-release@v2.5.0
         with:
           name: ${{ env.PUBLISH_NAME }}
-          tag_name: v${{ env.VERSION }}-${{ env.VSCODE_QUALITY }}
+          tag_name: v${{ env.CODEOSS_VERSION }}-${{ env.VSCODE_QUALITY }}
           prerelease: ${{ env.PRE_RELEASE }}
           make_latest: ${{ env.MAKE_LATEST }}
           target_commitish: ${{ github.sha }}
@@ -966,6 +973,7 @@ jobs:
       NAME_SHORT: ${{ needs.generate-product-configurations.outputs.name-short }}
       NAME_LONG: ${{ needs.generate-product-configurations.outputs.name-long }}
       VERSION: ${{ needs.generate-product-configurations.outputs.version }}
+      CODEOSS_VERSION: ${{ needs.generate-product-configurations.outputs.codeoss-version }}
       VSCODE_CLI_TARGET: ${{ matrix.vscode-cli-target-arch }}-pc-windows-msvc
       CARGO_NET_GIT_FETCH_WITH_CLI: true
       CFLAGS: "/guard:cf /Qspectre"
@@ -1160,13 +1168,13 @@ jobs:
         run: |
           DATE_STRING=$(node -p 'new Date().toDateString()')
           PUBLISH_QUALITY=$(node -p 'const obj={"stable":"Stable","insider":"Insider","exploration":"Exploration"};" "+obj["'$VSCODE_QUALITY'"]||""')
-          echo "PUBLISH_NAME=$NAME_LONG$PUBLISH_QUALITY $VERSION ($DATE_STRING)" >>"$GITHUB_ENV"
+          echo "PUBLISH_NAME=$NAME_LONG$PUBLISH_QUALITY $CODEOSS_VERSION ($DATE_STRING)" >>"$GITHUB_ENV"
 
       - name: Publish artifacts
         uses: softprops/action-gh-release@v2.5.0
         with:
           name: ${{ env.PUBLISH_NAME }}
-          tag_name: v${{ env.VERSION }}-${{ env.VSCODE_QUALITY }}
+          tag_name: v${{ env.CODEOSS_VERSION }}-${{ env.VSCODE_QUALITY }}
           prerelease: ${{ env.PRE_RELEASE }}
           make_latest: ${{ env.MAKE_LATEST }}
           target_commitish: ${{ github.sha }}
@@ -1204,6 +1212,7 @@ jobs:
       APPLICATION_NAME: ${{ needs.generate-product-configurations.outputs.application-name }}
       NAME_LONG: ${{ needs.generate-product-configurations.outputs.name-long }}
       VERSION: ${{ needs.generate-product-configurations.outputs.version }}
+      CODEOSS_VERSION: ${{ needs.generate-product-configurations.outputs.codeoss-version }}
       VSCODE_QUALITY: ${{ matrix.vscode-quality }}
 
     steps:
@@ -1297,13 +1306,13 @@ jobs:
         run: |
           DATE_STRING=$(node -p 'new Date().toDateString()')
           PUBLISH_QUALITY=$(node -p 'const obj={"stable":"Stable","insider":"Insider","exploration":"Exploration"};" "+obj["'$VSCODE_QUALITY'"]||""')
-          echo "PUBLISH_NAME=$NAME_LONG$PUBLISH_QUALITY $VERSION ($DATE_STRING)" >>"$GITHUB_ENV"
+          echo "PUBLISH_NAME=$NAME_LONG$PUBLISH_QUALITY $CODEOSS_VERSION ($DATE_STRING)" >>"$GITHUB_ENV"
 
       - name: Publish artifacts
         uses: softprops/action-gh-release@v2.5.0
         with:
           name: ${{ env.PUBLISH_NAME }}
-          tag_name: v${{ env.VERSION }}-${{ env.VSCODE_QUALITY }}
+          tag_name: v${{ env.CODEOSS_VERSION }}-${{ env.VSCODE_QUALITY }}
           prerelease: ${{ env.PRE_RELEASE }}
           make_latest: ${{ env.MAKE_LATEST }}
           target_commitish: ${{ github.sha }}
