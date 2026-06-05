@@ -122,7 +122,9 @@ jobs:
 
   compile:
     name: Compile
-    runs-on: ubuntu-slim
+    runs-on: ubuntu-latest
+    container:
+      image: ghcr.io/lcjuves/container-base:latest
     strategy:
       fail-fast: true
       matrix:
