@@ -39,7 +39,7 @@ jobs:
   generate-product-configurations:
     if: ${{ endsWith(github.repository, 'codeoss') }}
     name: Generate product configurations
-    runs-on: windows-latest
+    runs-on: ubuntu-slim
     strategy:
       fail-fast: true
       matrix:
@@ -950,7 +950,7 @@ jobs:
 
   build-windows:
     name: Build Windows
-    runs-on: windows-2022 # windows-2025
+    runs-on: windows-2025-vs2026
     needs: [generate-product-configurations, compile]
     continue-on-error: false
     strategy:
