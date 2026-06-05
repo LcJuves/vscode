@@ -3231,6 +3231,11 @@
             "markdownDescription": "%github.copilot.nextEditSuggestions.enabled%",
             "scope": "language-overridable"
           },
+          "github.copilot.completions.chat.enabled": {
+            "type": "boolean",
+            "default": false,
+            "markdownDescription": "%github.copilot.completions.chat.enabled%"
+          },
           "github.copilot.nextEditSuggestions.extendedRange": {
             "type": "boolean",
             "default": true,
@@ -6204,18 +6209,6 @@
           "group": "1_edit@4"
         }
       ],
-      "chatSessions/header/context": [
-        {
-          "command": "github.copilot.claude.sessions.rename",
-          "when": "chatSessionType == claude-code && chatSessionProviderId == default-copilot",
-          "group": "2_edit@4"
-        },
-        {
-          "command": "github.copilot.cli.sessions.rename",
-          "when": "chatSessionType == copilotcli && chatSessionProviderId == default-copilot",
-          "group": "2_edit@4"
-        }
-      ],
       "chat/multiDiff/context": [
         {
           "command": "github.copilot.cloud.sessions.installPRExtension",
@@ -7031,7 +7024,6 @@
     "applicationinsights": "^2.9.7",
     "best-effort-json-parser": "^1.2.1",
     "diff": "^8.0.3",
-    "dompurify": "^3.4.8",
     "express": "^5.2.1",
     "ignore": "^7.0.5",
     "isbinaryfile": "^5.0.4",
