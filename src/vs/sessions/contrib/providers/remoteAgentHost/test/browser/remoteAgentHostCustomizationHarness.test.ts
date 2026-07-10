@@ -131,7 +131,6 @@ function createTestCustomAgentsService(connection: MockAgentConnection, rootCust
 		Event.filter(connection.onDidAction, envelope =>
 			envelope.action.type === ActionType.SessionCustomizationsChanged
 			|| envelope.action.type === ActionType.SessionCustomizationUpdated
-			|| envelope.action.type === ActionType.SessionAgentChanged
 		),
 		() => undefined,
 	);
@@ -152,7 +151,16 @@ function createTestCustomAgentsService(connection: MockAgentConnection, rootCust
 		},
 		getWorkingDirectory(sessionResource: URI): string | undefined {
 			return undefined;
-		}
+		},
+		getMcpServers(_sessionResource: URI) {
+			return [];
+		},
+		addMcpServer(_sessionResource: URI, _name: string, _config) {
+			// no-op
+		},
+		authenticateMcpServer(_sessionResource: URI, _serverId: string) {
+			return Promise.resolve(false);
+		},
 	};
 }
 
@@ -664,7 +672,7 @@ suite('RemoteAgentHostCustomizationHarness', () => {
 		// Each expanded (non-bundle) item must carry a `pluginUri` so that
 		// downstream slash-command resolution can build a `plugin:`-prefixed
 		// command id via `getCanonicalPluginCommandId`.
-		const expectedPluginUri = 'vscode-agent-host://test-authority/file/-/plugins/skills-bundle';
+		const expectedPluginUri = 'vscode-agent-host://test-authority/plugins/skills-bundle?_ah%3DeyJzY2hlbWUiOiJmaWxlIn0';
 		for (const skillItem of skillItems) {
 			assert.strictEqual(skillItem.pluginUri?.toString(), expectedPluginUri, `skill ${skillItem.name} should carry pluginUri`);
 		}
