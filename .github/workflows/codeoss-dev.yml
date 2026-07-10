@@ -26,7 +26,7 @@ env:
   CARGO_TERM_COLOR: always
   CODE_ICO_URL: https://github.com/LcJuves/vscode/raw/94cba4eb314f52fd18b47b72459954fda65302d0/resources/win32/code.ico
   VSCODE_STEP_ON_IT: false
-  CACHE_SPEC_KEY: 1780529616
+  CACHE_SPEC_KEY: 1783709947
   PRE_RELEASE: true
   MAKE_LATEST: legacy
   ACTIONS_ALLOW_USE_UNSECURE_NODE_VERSION: true
@@ -39,7 +39,7 @@ jobs:
   generate-product-configurations:
     if: ${{ endsWith(github.repository, 'codeoss') }}
     name: Generate product configurations
-    runs-on: ubuntu-slim
+    runs-on: windows-latest
     strategy:
       fail-fast: true
       matrix:
@@ -123,8 +123,8 @@ jobs:
   compile:
     name: Compile
     runs-on: ubuntu-latest
-    container:
-      image: ghcr.io/lcjuves/container-base:latest
+    # container:
+    #   image: ghcr.io/lcjuves/container-base:latest
     strategy:
       fail-fast: true
       matrix:
